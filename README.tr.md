@@ -181,6 +181,42 @@ sudo ./install.sh --rollback
 
 TLS, kümeleme, ClickHouse, dizin ve servis seçenekleri için `sudo ./install.sh --help` kullanın. [Debian](packaging/deb/README.md) ve [RPM](packaging/rpm/README.md) paket notları ayrıca sunulur.
 
+### Windows
+
+PowerShell'i Yönetici olarak açıp yerel Windows kurulum betiğini çalıştırın:
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\install.ps1 -Version 4.0.0
+Get-Service CentralFlowCollector
+```
+
+Betiğin bulduğu `dist\flowcollector-windows-amd64.exe` veya ARM64 ikilisini
+`Program Files` altına kurar, değişken verileri `ProgramData` altında tutar,
+yapılandırmayı doğrular ve `CentralFlowCollector` Windows servisini oluşturur.
+Yerel Go kurulumu varsa eksik ikiliyi kaynak koddan derler. `-NoService -NoStart`
+ön planda kullanım, `-Force` yükseltme, `uninstall.ps1 -PurgeData` ise veriler
+dahil kaldırma içindir. Windows UDP ve IPFIX TCP'yi destekler; SCTP için Linux
+ikilisini kullanın.
+
+### macOS, FreeBSD ve diğer Unix sistemleri
+
+systemd olmayan sistemlerde taşınabilir betiği kullanın:
+
+```sh
+./install-portable.sh --prefix "$HOME/.local" \
+  --config-dir "$HOME/.config/flowcollector" \
+  --data-dir "$HOME/.local/share/flowcollector" \
+  --no-service
+```
+
+Root ile çalıştırıldığında varsayılan yollar `/usr/local`,
+`/usr/local/etc/flowcollector` ve `/var/lib/flowcollector` olur. Betik işletim
+sistemi/mimariyi seçer, `dist/` içindeki uygun ikiliyi kullanır veya Go ile
+kaynak koddan derler. macOS için LaunchAgent/LaunchDaemon tanımı oluşturulur;
+FreeBSD için rc.d entegrasyon yönergesi verilir. `uninstall-portable.sh`
+ikili ve yapılandırmayı kaldırır; veri ancak `--purge-data` ile silinir.
+
 ### Docker Compose
 
 ```bash
@@ -389,7 +425,9 @@ Gereksinimler: Go 1.23+, GNU Make ve `sha256sum` veya `shasum`. SBOM için Pytho
 
 ```bash
 make build VERSION=4.0.0
-make static VERSION=4.0.0
+make static VERSION=4.0.0                 # Linux amd64 + arm64
+TARGETS='darwin/amd64 darwin/arm64 windows/amd64 freebsd/amd64' \
+  ./scripts/build-static.sh              # diğer OS ikilileri
 make test
 make vet
 make benchmark

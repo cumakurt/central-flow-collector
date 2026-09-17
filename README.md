@@ -183,6 +183,45 @@ sudo ./install.sh --rollback
 
 Run `sudo ./install.sh --help` for TLS, clustering, ClickHouse, path, and service options. Package notes are available for [Debian](packaging/deb/README.md) and [RPM](packaging/rpm/README.md).
 
+### Windows
+
+Run PowerShell as Administrator and execute the native installer. It installs
+the executable and configuration below `Program Files`, stores mutable data
+under `ProgramData`, validates the configuration, and optionally registers a
+`CentralFlowCollector` Windows service:
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\install.ps1 -Version 4.0.0
+Get-Service CentralFlowCollector
+```
+
+The script uses `dist\flowcollector-windows-amd64.exe` or the matching ARM64
+artifact when present, otherwise it builds from the local source tree when Go
+is installed. Use `-NoService -NoStart` for a foreground/manual deployment,
+`-Force` for an upgrade, and `uninstall.ps1 -PurgeData` only when the stored
+flows and configuration should also be removed. Windows builds support UDP
+listeners; IPFIX TCP is available through the same listener configuration.
+SCTP requires the Linux build.
+
+### macOS, FreeBSD, and other Unix systems
+
+Use the portable installer when systemd is not available:
+
+```sh
+./install-portable.sh --prefix "$HOME/.local" \
+  --config-dir "$HOME/.config/flowcollector" \
+  --data-dir "$HOME/.local/share/flowcollector" \
+  --no-service
+```
+
+As root, the defaults install under `/usr/local`, `/usr/local/etc/flowcollector`,
+and `/var/lib/flowcollector`. The script selects the host OS/architecture,
+uses a matching `dist/` artifact, or compiles from source with Go. macOS gets a
+LaunchAgent/LaunchDaemon definition; FreeBSD receives an explicit rc.d
+integration notice. Remove files with `./uninstall-portable.sh`; data is kept
+unless `--purge-data` is supplied.
+
 ### Docker Compose
 
 ```bash
@@ -391,7 +430,9 @@ Requirements: Go 1.23+, GNU Make, and `sha256sum` or `shasum`. Python 3 is used 
 
 ```bash
 make build VERSION=4.0.0             # Linux amd64
-make static VERSION=4.0.0            # all five tools, amd64 + arm64
+make static VERSION=4.0.0            # all five tools, Linux amd64 + arm64
+TARGETS='darwin/amd64 darwin/arm64 windows/amd64 freebsd/amd64' \
+  ./scripts/build-static.sh           # additional portable OS artifacts
 make test
 make vet
 make benchmark

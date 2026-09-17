@@ -16,26 +16,32 @@ VERSION="${VERSION:-4.0.0}"
 COMMIT="${COMMIT:-$(git rev-parse --short HEAD 2>/dev/null || printf unknown)}"
 BUILD_TIME="${BUILD_TIME:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
 OUT_DIR="${OUT_DIR:-$ROOT/dist}"
-# Supported deployment targets are Linux amd64 and arm64 only.
+# Linux is the default release target; additional targets can be requested via
+# TARGETS (for example: darwin/arm64 windows/amd64 freebsd/amd64).
 TARGETS="${TARGETS:-linux/amd64 linux/arm64}"
 mkdir -p "$OUT_DIR"
 OUT_DIR="$(cd "$OUT_DIR" && pwd)"
 install -m 0644 "$ROOT/LICENSE" "$ROOT/NOTICE" "$OUT_DIR/"
-rm -f "$OUT_DIR"/{flowcollector,flowgen,chbench,flowbench,querybench}-darwin-* \
-      "$OUT_DIR"/{flowcollector,flowgen,chbench,flowbench,querybench}-windows-*.exe
+for app in flowcollector flowgen chbench flowbench querybench; do
+  rm -f "$OUT_DIR/$app-linux-"* "$OUT_DIR/$app-darwin-"* \
+        "$OUT_DIR/$app-freebsd-"* "$OUT_DIR/$app-openbsd-"* \
+        "$OUT_DIR/$app-netbsd-"* "$OUT_DIR/$app-windows-"*
+done
 
 ldflags="-s -w -X central-flow-collector/internal/buildinfo.Version=$VERSION -X central-flow-collector/internal/buildinfo.Commit=$COMMIT -X central-flow-collector/internal/buildinfo.BuildTime=$BUILD_TIME"
 manifest="$OUT_DIR/static-builds.txt"
 : > "$manifest"
 for target in $TARGETS; do
   case "$target" in
-    linux/amd64|linux/arm64) ;;
+    linux/amd64|linux/arm64|darwin/amd64|darwin/arm64|freebsd/amd64|freebsd/arm64|openbsd/amd64|netbsd/amd64|windows/amd64|windows/arm64) ;;
     *) echo "unsupported target: $target" >&2; exit 2 ;;
   esac
   os="${target%/*}"
   arch="${target#*/}"
   for app in flowcollector flowgen chbench flowbench querybench; do
-    name="$app-$os-$arch"
+    suffix=""
+    [ "$os" = windows ] && suffix=".exe"
+    name="$app-$os-$arch$suffix"
     output="$OUT_DIR/$name"
     echo "Building $app for $target"
     CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build -buildvcs=false -trimpath -tags netgo,osusergo -ldflags "$ldflags" -o "$output" "./cmd/$app"
@@ -50,9 +56,7 @@ static_tmp="$(mktemp "$OUT_DIR/.static-checksums.XXXXXX")"
 (
   cd "$OUT_DIR"
   shopt -s nullglob
-  binaries=(flowcollector-linux-* flowgen-linux-* chbench-linux-*
-         flowbench-linux-* querybench-linux-*
-         )
+  binaries=(flowcollector-* flowgen-* chbench-* flowbench-* querybench-*)
   printf '%s\n' "${binaries[@]}" | sort -u | while IFS= read -r file; do
     hash_file "$file"
   done > "$static_tmp"
