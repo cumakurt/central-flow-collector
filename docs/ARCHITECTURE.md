@@ -2,7 +2,13 @@
 
 ## Runtime data path
 
-Each UDP listener owns a bounded packet queue. Linux may batch datagram reads with `recvmmsg`. Workers decode NetFlow v5/v9, IPFIX or sFlow into one normalized `model.Flow`; v9/IPFIX template state is isolated by exporter/observation-domain. Policy validation and optional prefix Geo/ASN/site enrichment occur before analytics/storage.
+Each UDP listener owns a bounded packet queue; IPFIX listeners may also accept
+RFC 7011 framed TCP or Linux SCTP streams. Linux may batch datagram reads with
+`recvmmsg`. Workers decode NetFlow v1/v5/v7/v8/v9, IPFIX or sFlow into one
+normalized `model.Flow`; v9/IPFIX template state is isolated by exporter,
+transport/source port, listener, observation domain and template ID. Policy
+validation and optional prefix Geo/ASN/site enrichment occur before
+analytics/storage. TLS/DTLS is terminated outside the collector.
 
 The operational analytics engine keeps bounded aggregates and a persisted hour-of-week traffic baseline. It produces traffic-volume deviations, large-flow and exporter-availability events only; it does not classify attacks.
 

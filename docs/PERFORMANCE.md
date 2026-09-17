@@ -1,6 +1,10 @@
 # Performance
 
-v4 uses bounded listener and storage queues, batch UDP reads on Linux, worker sharding, reusable buffers, async storage batches, bounded analytics state and ClickHouse aggregate queries.
+v4 uses bounded listener and storage queues, batch UDP reads on Linux, framed
+IPFIX stream readers, worker sharding, reusable buffers, async storage batches,
+bounded analytics state and ClickHouse aggregate queries. TCP/SCTP stream
+connections are framed by the IPFIX message length and are isolated per
+connection; SCTP collection is available on Linux builds.
 
 Two reproducible tools are shipped:
 

@@ -34,8 +34,9 @@ V7 validity flags are retained, not interpreted as field suppression rules.
 ## NetFlow v9 and IPFIX
 
 Both protocols decode ordinary and options templates. Templates are isolated
-by exporter IP, source UDP port, listener, protocol, observation domain, and
-template ID. An exporter changing source port must send new templates.
+by exporter IP, transport/source port, listener, protocol, observation domain,
+and template ID. An exporter changing source port or stream connection must
+send new templates.
 
 Options records are available in the template snapshot API and never counted
 as traffic flows. Up to 256 scope-specific option records are retained per
