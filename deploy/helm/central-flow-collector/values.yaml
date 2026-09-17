@@ -1,0 +1,19 @@
+replicaCount: 1
+image:
+  repository: central-flow-collector
+  tag: "4.0.0"
+  pullPolicy: IfNotPresent
+service:
+  type: LoadBalancer
+  webPort: 8080
+  netflowPort: 2055
+  ipfixPort: 4739
+  sflowPort: 6343
+persistence:
+  enabled: true
+  size: 20Gi
+config:
+  storageBackend: local
+  clickhouseURL: http://clickhouse:8123
+  retentionDays: 7
+resources: {}

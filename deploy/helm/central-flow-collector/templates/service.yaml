@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  type: {{ .Values.service.type }}
+  selector: {app: {{ .Release.Name }}}
+  ports:
+    - {name: web, port: {{ .Values.service.webPort }}, targetPort: web, protocol: TCP}
+    - {name: netflow, port: {{ .Values.service.netflowPort }}, targetPort: netflow, protocol: UDP}
+    - {name: ipfix, port: {{ .Values.service.ipfixPort }}, targetPort: ipfix, protocol: UDP}
+    - {name: sflow, port: {{ .Values.service.sflowPort }}, targetPort: sflow, protocol: UDP}

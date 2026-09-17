@@ -1,0 +1,4 @@
+ok  	central-flow-collector/internal/collector	(cached)
+ok  	central-flow-collector/internal/analytics	(cached)
+ok  	central-flow-collector/internal/dedup	(cached)
+ok  	central-flow-collector/internal/storage	(cached)

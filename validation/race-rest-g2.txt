@@ -1,0 +1,15 @@
+?   	central-flow-collector/cmd/chbench	[no test files]
+?   	central-flow-collector/cmd/querybench	[no test files]
+?   	central-flow-collector/internal/buildinfo	[no test files]
+?   	central-flow-collector/internal/decoder/fields	[no test files]
+ok  	central-flow-collector/cmd/flowcollector	1.172s
+ok  	central-flow-collector/internal/analytics	1.152s
+ok  	central-flow-collector/internal/collector	1.189s
+ok  	central-flow-collector/internal/decoder/netflow5	1.118s
+ok  	central-flow-collector/internal/decoder/sflow	1.161s
+ok  	central-flow-collector/internal/dr	1.327s
+?   	central-flow-collector/internal/templates	[no test files]
+ok  	central-flow-collector/internal/ldapauth	1.215s
+ok  	central-flow-collector/internal/notification	1.162s
+ok  	central-flow-collector/internal/policy	1.173s
+ok  	central-flow-collector/internal/secrets	1.125s

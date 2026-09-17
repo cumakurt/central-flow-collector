@@ -1,0 +1,15 @@
+?   	central-flow-collector/cmd/flowbench	[no test files]
+?   	central-flow-collector/cmd/flowgen	[no test files]
+ok  	central-flow-collector/internal/adminops	1.197s
+ok  	central-flow-collector/internal/audit	1.187s
+ok  	central-flow-collector/internal/cluster	1.270s
+ok  	central-flow-collector/internal/config	1.113s
+ok  	central-flow-collector/internal/decoder/ipfix	1.107s
+?   	central-flow-collector/internal/model	[no test files]
+ok  	central-flow-collector/internal/decoder/netflow9	1.145s
+ok  	central-flow-collector/internal/dedup	1.134s
+ok  	central-flow-collector/internal/enrichment	1.125s
+ok  	central-flow-collector/internal/oidc	2.131s
+ok  	central-flow-collector/internal/reporting	1.151s
+ok  	central-flow-collector/internal/storage	1.553s
+ok  	central-flow-collector/internal/workspace	1.474s

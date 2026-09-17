@@ -1,0 +1,14 @@
+ new Debian package, version 2.0.
+ size 2464904 bytes: control archive=716 bytes.
+      31 bytes,     1 lines      conffiles
+     308 bytes,     8 lines      control
+     519 bytes,     7 lines   *  postinst             #!/bin/sh
+     156 bytes,     4 lines   *  prerm                #!/bin/sh
+ Package: central-flow-collector
+ Version: 4.0.0
+ Section: net
+ Priority: optional
+ Architecture: arm64
+ Maintainer: Central Flow Collector contributors
+ Description: High-performance Central Flow Collector & Flow Analytics Platform
+  Collects NetFlow v5/v9, IPFIX and sFlow and provides centralized flow analytics.

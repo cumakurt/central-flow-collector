@@ -1,0 +1,11 @@
+'use strict';
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const source=fs.readFileSync('internal/api/static/services.js','utf8');
+const ctx=vm.createContext({console,URLSearchParams,URL,location:{search:'',href:'http://localhost/'},PortalState:{},Map,Date,Intl,Math,Number});
+vm.runInContext(source,ctx);
+assert.equal(vm.runInContext("serviceScaleMode([25000000,2600],'auto')",ctx),'log','auto must expose low-volume series when peaks differ by orders of magnitude');
+assert.equal(vm.runInContext("serviceScaleMode([25000,12000],'auto')",ctx),'linear','auto should preserve linear scale for comparable traffic');
+assert.equal(vm.runInContext("serviceScaleMode([25000000,2600],'linear')",ctx),'linear','explicit linear selection must be respected');
+assert.equal(vm.runInContext("serviceScaleMode([25,20],'log')",ctx),'log','explicit logarithmic selection must be respected');
+assert.equal(vm.runInContext("serviceScaleMode([0,0],'auto')",ctx),'linear','zero-only data should stay linear');
+console.log('service-chart scale tests: 5/5 PASS');

@@ -1,0 +1,6 @@
+amd64
+284caa90ffe63bf6d985fbd81d3838f940cdc3d5c4ff1fd5358fad337cedf880  dist/flowcollector-linux-amd64
+284caa90ffe63bf6d985fbd81d3838f940cdc3d5c4ff1fd5358fad337cedf880  /tmp/tmp.sMjDKuU1JP/amd64/usr/local/bin/flowcollector
+arm64
+72c35dc855677264b4b42ade10f78a11cc65153dad2f07df78b5e88929dcdb88  dist/flowcollector-linux-arm64
+72c35dc855677264b4b42ade10f78a11cc65153dad2f07df78b5e88929dcdb88  /tmp/tmp.sMjDKuU1JP/arm64/usr/local/bin/flowcollector

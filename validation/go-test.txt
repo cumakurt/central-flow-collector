@@ -1,0 +1,32 @@
+?   	central-flow-collector/cmd/chbench	[no test files]
+?   	central-flow-collector/cmd/flowbench	[no test files]
+?   	central-flow-collector/cmd/flowgen	[no test files]
+?   	central-flow-collector/cmd/querybench	[no test files]
+ok  	central-flow-collector/cmd/flowcollector	0.035s
+ok  	central-flow-collector/internal/adminops	0.060s
+ok  	central-flow-collector/internal/analytics	0.039s
+?   	central-flow-collector/internal/buildinfo	[no test files]
+?   	central-flow-collector/internal/decoder/fields	[no test files]
+?   	central-flow-collector/internal/model	[no test files]
+ok  	central-flow-collector/internal/api	6.505s
+ok  	central-flow-collector/internal/audit	0.017s
+?   	central-flow-collector/internal/templates	[no test files]
+ok  	central-flow-collector/internal/auth	13.723s
+ok  	central-flow-collector/internal/cluster	0.079s
+ok  	central-flow-collector/internal/collector	0.044s
+ok  	central-flow-collector/internal/config	0.024s
+ok  	central-flow-collector/internal/decoder/ipfix	0.049s
+ok  	central-flow-collector/internal/decoder/netflow5	0.045s
+ok  	central-flow-collector/internal/decoder/netflow9	0.051s
+ok  	central-flow-collector/internal/decoder/sflow	0.043s
+ok  	central-flow-collector/internal/dedup	0.017s
+ok  	central-flow-collector/internal/dr	0.100s
+ok  	central-flow-collector/internal/enrichment	0.026s
+ok  	central-flow-collector/internal/ldapauth	0.024s
+ok  	central-flow-collector/internal/notification	0.060s
+ok  	central-flow-collector/internal/oidc	0.411s
+ok  	central-flow-collector/internal/policy	0.054s
+ok  	central-flow-collector/internal/reporting	0.092s
+ok  	central-flow-collector/internal/secrets	0.018s
+ok  	central-flow-collector/internal/storage	0.235s
+ok  	central-flow-collector/internal/workspace	0.119s

@@ -1,0 +1,6 @@
+fuzz: elapsed: 0s, gathering baseline coverage: 0/1 completed
+fuzz: elapsed: 0s, gathering baseline coverage: 1/1 completed, now fuzzing with 5 workers
+fuzz: elapsed: 3s, execs: 150532 (50113/sec), new interesting: 6 (total: 7)
+fuzz: elapsed: 5s, execs: 243273 (44215/sec), new interesting: 7 (total: 8)
+PASS
+ok  	central-flow-collector/internal/decoder/netflow9	5.130s

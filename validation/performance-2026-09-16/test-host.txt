@@ -1,0 +1,8 @@
+CPU: AMD EPYC 9V74, 5 vCPU exposed, 1 thread/core
+RAM: 5.8 GiB, no swap
+Kernel: Linux 6.18.44 x86_64
+Filesystem: 32 GiB overlay
+ulimit -n: 16384
+net.core.rmem_max: 4194304
+net.core.wmem_max: 4194304
+Generator and collector shared the same sandbox host / loopback.

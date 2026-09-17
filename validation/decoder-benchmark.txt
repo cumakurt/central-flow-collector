@@ -1,0 +1,14 @@
+?   	central-flow-collector/internal/decoder/fields	[no test files]
+PASS
+ok  	central-flow-collector/internal/decoder/ipfix	0.030s
+goos: linux
+goarch: amd64
+pkg: central-flow-collector/internal/decoder/netflow5
+cpu: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz
+BenchmarkDecodeV5_30Flows-5   	   63866	     18711 ns/op	   38416 B/op	      96 allocs/op
+PASS
+ok  	central-flow-collector/internal/decoder/netflow5	1.363s
+PASS
+ok  	central-flow-collector/internal/decoder/netflow9	0.024s
+PASS
+ok  	central-flow-collector/internal/decoder/sflow	0.020s

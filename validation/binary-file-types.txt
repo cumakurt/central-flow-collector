@@ -1,0 +1,10 @@
+dist/chbench-linux-amd64:       ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, Go BuildID=68wY21YVnzwvIgLgp3PT/G9Ck1RFWkc-G9IqcBkI0/BvobWMEEATQ4Lp6wvzyD/dKwHVCukcgAvMrrBW-FE, stripped
+dist/chbench-linux-arm64:       ELF 64-bit LSB executable, ARM aarch64, version 1 (SYSV), statically linked, Go BuildID=ziB6j1ZBGBm2ortl5WSA/sM3wHXrKC6npDkfPL5Mt/xfcMoXLTck2BeqPxJvgz/vXC9agADRtevM_Pr1V_d, stripped
+dist/flowbench-linux-amd64:     ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, Go BuildID=rLaFRCu8YC1Lm4ichy6m/fqBmzb0JktEJzgXY1MBV/Ks20CejfwMj8B0GhxWnr/_Xec68DLYvZolZCR8FwG, stripped
+dist/flowbench-linux-arm64:     ELF 64-bit LSB executable, ARM aarch64, version 1 (SYSV), statically linked, Go BuildID=erKLsUS34pLGj6-FcNZU/W8HF85gbOZwxtK69wql6/fCqk8bU87MrFin7RjPHw/nCazuIe8Z1JfP7NwXgss, stripped
+dist/flowcollector-linux-amd64: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, Go BuildID=GnAkNIlKBLmWUeYYnNzD/5KZ016IO6V3RqTOdhb5G/C4XWmLg7iCZXBPslgQlq/j8rNcisw0LCgcprjUipb, stripped
+dist/flowcollector-linux-arm64: ELF 64-bit LSB executable, ARM aarch64, version 1 (SYSV), statically linked, Go BuildID=JTyls7NlhebbXEL6qLMo/NsbLCBHptJQQmS7ODHKP/WFZDfC9mvvPpLJpPcGpT/pA1DtRpuYeaq9PGyaGIQ, stripped
+dist/flowgen-linux-amd64:       ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, Go BuildID=22_d4vEJTQY0Qe6cN6vR/ihZ5t1Hssmq-jn2AVmzH/svvr-ESXv2_GwFf3pnW1/99o6DrjVB73gWWUpQ8DA, stripped
+dist/flowgen-linux-arm64:       ELF 64-bit LSB executable, ARM aarch64, version 1 (SYSV), statically linked, Go BuildID=UUeNdfCS2m8D5cs6hQaD/XmTdR3YbMTfzmisK4ePU/tplubUl0sOmKaxK1m2Pg/nnr5m9l1VmpyWNfvqTve, stripped
+dist/querybench-linux-amd64:    ELF 64-bit LSB executable, x86-64, version 1 (SYSV), statically linked, Go BuildID=mxz8Vy5JirI_an4PRKyN/LtkNdpfVIhKsFmLMQK4S/FMSgxfHfX5c2ZZtuObDB/W5ESbnZL8_2ZLeaDWcCP, stripped
+dist/querybench-linux-arm64:    ELF 64-bit LSB executable, ARM aarch64, version 1 (SYSV), statically linked, Go BuildID=dd1JdSFz1PAkpzxZGKcC/slNSacP2Yuz3hrd4Vnu_/B3wSUkMg2qNhpwv9qRtX/MFTd_d7L8F_lo-WshL13, stripped

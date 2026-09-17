@@ -1,0 +1,27 @@
+{
+  "date": "2026-09-16",
+  "host": {"cpu":"AMD EPYC 9V74","vcpus":5,"ram_gib":5.8,"swap_gib":0},
+  "features_enabled_profile": {"enrichment":"local/private path","baseline":true,"dedup":true,"dedup_max_entries":200000,"storage":"local JSONL"},
+  "dense_30_flows_per_packet": {
+    "common_zero_drop_tested_flow_per_sec": "205000-210000",
+    "common_zero_drop_packet_per_sec": "~7000",
+    "recommended_sustained_design_flow_per_sec": 140000,
+    "degradation_begins_above_flow_per_sec": "~210000 workload-dependent",
+    "all_protocols_storage_drop_observed_near_flow_per_sec": 298000
+  },
+  "one_flow_per_packet": {
+    "common_zero_drop_tested_packet_per_sec": "~199000",
+    "recommended_sustained_design_packet_per_sec": "130000-140000",
+    "storage_drop_observed_at_target_packet_per_sec": 250000
+  },
+  "netflow5_10s_soak": {"target_packet_per_sec":7000,"flows_persisted":2097960,"listener_drops":0,"storage_drops":0},
+  "local_storage_bytes_per_flow": 451.45,
+  "overload_before_after": {
+    "before_rss_mib":1159,
+    "after_rss_mib":138,
+    "before_peak_mib":1159,
+    "after_peak_mib":224,
+    "before_analytics_flows":1597080,
+    "after_analytics_flows":2148840
+  }
+}

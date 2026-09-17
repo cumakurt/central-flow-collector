@@ -1,0 +1,9 @@
+Local query benchmark · 50000 synthetic flows
+last_15m_top_sources         p50=   43.08 ms p95=   43.64 ms items=20
+last_24h_top_destinations    p50=  147.03 ms p95=  147.82 ms items=20
+last_7d_traffic_trend        p50=  796.68 ms p95=  803.80 ms items=673
+ip_search                    p50=  434.10 ms p95=  436.71 ms items=1
+asn_aggregation              p50=  133.70 ms p95=  140.47 ms items=20
+country_aggregation          p50=  141.40 ms p95=  142.18 ms items=6
+protocol_aggregation         p50=  134.62 ms p95=  145.54 ms items=2
+exporter_statistics          p50=  140.91 ms p95=  147.49 ms items=16

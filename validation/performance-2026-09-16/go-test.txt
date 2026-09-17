@@ -1,0 +1,35 @@
+?   	central-flow-collector	[no test files]
+?   	central-flow-collector/cmd/chbench	[no test files]
+?   	central-flow-collector/cmd/flowbench	[no test files]
+?   	central-flow-collector/cmd/flowgen	[no test files]
+?   	central-flow-collector/cmd/querybench	[no test files]
+ok  	central-flow-collector/cmd/flowcollector	(cached)
+ok  	central-flow-collector/internal/adminops	(cached)
+ok  	central-flow-collector/internal/analytics	(cached)
+ok  	central-flow-collector/internal/api	(cached)
+ok  	central-flow-collector/internal/audit	(cached)
+?   	central-flow-collector/internal/buildinfo	[no test files]
+ok  	central-flow-collector/internal/auth	(cached)
+ok  	central-flow-collector/internal/cluster	(cached)
+?   	central-flow-collector/internal/decoder/fields	[no test files]
+ok  	central-flow-collector/internal/collector	(cached)
+ok  	central-flow-collector/internal/config	(cached)
+ok  	central-flow-collector/internal/decoder/ipfix	(cached)
+ok  	central-flow-collector/internal/decoder/netflow5	(cached)
+ok  	central-flow-collector/internal/decoder/netflow9	(cached)
+ok  	central-flow-collector/internal/decoder/sflow	(cached)
+ok  	central-flow-collector/internal/dedup	(cached)
+ok  	central-flow-collector/internal/dr	(cached)
+ok  	central-flow-collector/internal/engineering	(cached)
+ok  	central-flow-collector/internal/enrichment	(cached)
+ok  	central-flow-collector/internal/intelligence	(cached)
+ok  	central-flow-collector/internal/ldapauth	(cached)
+?   	central-flow-collector/internal/model	[no test files]
+ok  	central-flow-collector/internal/notification	(cached)
+ok  	central-flow-collector/internal/oidc	(cached)
+ok  	central-flow-collector/internal/policy	(cached)
+ok  	central-flow-collector/internal/reporting	(cached)
+ok  	central-flow-collector/internal/secrets	(cached)
+ok  	central-flow-collector/internal/storage	(cached)
+?   	central-flow-collector/internal/templates	[no test files]
+ok  	central-flow-collector/internal/workspace	(cached)

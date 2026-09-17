@@ -1,0 +1,10 @@
+flowcollector linux amd64
+flowgen linux amd64
+chbench linux amd64
+flowbench linux amd64
+querybench linux amd64
+flowcollector linux arm64
+flowgen linux arm64
+chbench linux arm64
+flowbench linux arm64
+querybench linux arm64

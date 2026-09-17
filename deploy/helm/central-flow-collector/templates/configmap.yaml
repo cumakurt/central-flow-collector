@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+data:
+  config.yaml: |
+    web:
+      bind: "0.0.0.0"
+      port: {{ .Values.service.webPort }}
+      tls: false
+    storage:
+      backend: {{ .Values.config.storageBackend | quote }}
+      data_dir: "/var/lib/flowcollector"
+      retention_days: {{ .Values.config.retentionDays }}
+      clickhouse_url: {{ .Values.config.clickhouseURL | quote }}
+      clickhouse_database: "flowcollector"
+      clickhouse_table: "flows"
+      clickhouse_spool_enabled: true
+    security:
+      default_policy: "deny"
+      bootstrap_file: "/var/lib/flowcollector/bootstrap-admin.txt"
+    analytics:
+      baseline_enabled: true
+      max_tracked_hosts: 20000
+      max_dimension_keys: 100000
+    listeners:
+      - {name: netflow, bind: "0.0.0.0", port: {{ .Values.service.netflowPort }}, protocol: netflow, workers: 4, queue_size: 8192, read_buffer: 4194304, batch_size: 16, enabled: true}
+      - {name: ipfix, bind: "0.0.0.0", port: {{ .Values.service.ipfixPort }}, protocol: ipfix, workers: 4, queue_size: 8192, read_buffer: 4194304, batch_size: 16, enabled: true}
+      - {name: sflow, bind: "0.0.0.0", port: {{ .Values.service.sflowPort }}, protocol: sflow, workers: 4, queue_size: 8192, read_buffer: 4194304, batch_size: 16, enabled: true}

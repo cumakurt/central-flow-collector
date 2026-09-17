@@ -1,0 +1,51 @@
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:26.8
+    restart: unless-stopped
+    environment:
+      CLICKHOUSE_DB: flowcollector
+      CLICKHOUSE_USER: flowcollector
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?set CLICKHOUSE_PASSWORD}
+    volumes:
+      - clickhouse-data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--user", "flowcollector", "--password", "${CLICKHOUSE_PASSWORD:?set CLICKHOUSE_PASSWORD}", "--query", "SELECT 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  collector:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+      args:
+        VERSION: "4.0.0"
+    restart: unless-stopped
+    depends_on:
+      clickhouse:
+        condition: service_healthy
+    environment:
+      FLOWCOLLECTOR_WEB_BIND: "0.0.0.0"
+      FLOWCOLLECTOR_WEB_PORT: "8080"
+      FLOWCOLLECTOR_WEB_TLS: "false"
+      FLOWCOLLECTOR_STORAGE_BACKEND: "clickhouse"
+      FLOWCOLLECTOR_CLICKHOUSE_URL: "http://clickhouse:8123"
+      FLOWCOLLECTOR_CLICKHOUSE_DATABASE: "flowcollector"
+      FLOWCOLLECTOR_CLICKHOUSE_TABLE: "flows"
+      FLOWCOLLECTOR_CLICKHOUSE_USER: "flowcollector"
+      FLOWCOLLECTOR_CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?set CLICKHOUSE_PASSWORD}
+    ports:
+      - "8080:8080/tcp"
+      - "2055:2055/udp"
+      - "4739:4739/udp"
+      - "6343:6343/udp"
+    volumes:
+      - flowcollector-data:/var/lib/flowcollector
+      - ../../config.example.yaml:/etc/flowcollector/config.yaml:ro
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+
+volumes:
+  flowcollector-data:
+  clickhouse-data:

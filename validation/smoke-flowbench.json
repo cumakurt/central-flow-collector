@@ -1,0 +1,1 @@
+{"target":"127.0.0.1:22055","duration_seconds":3.000722561,"workers":2,"flows_per_packet":30,"packets":3726,"flows":111780,"bytes":5454864,"errors":0,"packets_per_second":1241.700931777678,"flows_per_second":37251.02795333034,"mib_per_second":1.733637012598534,"write_p50_us":32.918,"write_p95_us":32.918,"write_p99_us":32.918,"alloc_bytes":6269800,"num_gc":1,"gomaxprocs":5}

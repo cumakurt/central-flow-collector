@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="theme-color" content="#151b22">
+  <title>Central Flow Collector</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to analysis</a>
+  <div id="login" class="login-wrap">
+    <div class="login-shell">
+      <section class="login-intro">
+        <div class="product-kicker"><span class="brandmark" aria-hidden="true">≋</span><span>Central Flow Collector</span></div>
+        <h1>Network operations.<br>Every flow in context.</h1>
+        <p>High-performance NetFlow, IPFIX and sFlow collection with focused network traffic analytics and reporting.</p>
+        <div class="login-capabilities">
+          <span>NetFlow</span><span>IPFIX</span><span>sFlow</span><span>ClickHouse</span><span>Flow analytics</span>
+        </div>
+      </section>
+      <section class="login-card">
+        <div class="login-heading"><div><span class="eyebrow">SECURE ACCESS</span><h2>Sign in</h2></div></div>
+        <p>Use your local, directory, SSO or passkey identity.</p>
+        <div id="transportNotice" class="transport-notice hidden"></div>
+        <form id="loginForm">
+          <label>Username<input id="username" value="admin" autocomplete="username" placeholder="admin"></label>
+          <label>Password<input id="password" type="password" autocomplete="current-password" placeholder="••••••••••••"></label>
+          <button class="primary wide">Sign in</button>
+          <div class="login-divider"><span>or</span></div>
+          <div class="login-alt">
+            <button type="button" id="ssoBtn" class="ghost hidden">SSO</button>
+            <button type="button" id="ldapBtn" class="ghost hidden">LDAP / AD</button>
+            <button type="button" id="passkeyBtn" class="ghost">Passkey</button>
+          </div>
+          <div id="loginError" class="error"></div>
+        </form>
+        <button type="button" class="login-credit" data-about>Developed by Cuma KURT · AGPL-3.0-only</button>
+      </section>
+    </div>
+  </div>
+
+  <div id="app" class="app hidden">
+    <aside id="sidebar" class="sidebar">
+      <div class="brand">
+        <span class="brandmark small" aria-hidden="true">≋</span>
+        <div class="brand-copy"><b>CENTRAL FLOW</b><small id="version">COLLECTOR / ANALYTICS</small></div>
+        <button id="sidebarToggle" class="icon-btn sidebar-toggle" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">‹</button>
+      </div>
+
+      <nav id="nav" aria-label="Primary navigation"></nav>
+      <div class="sidebar-foot">
+        <div class="sidebar-account"><div class="user-chip"><span class="user-avatar">U</span><span id="userLabel"></span></div><button id="logoutBtn" class="ghost subtle">Logout</button></div>
+        <button type="button" class="product-credit" data-about aria-label="About Central Flow Collector, developer and license"><span aria-hidden="true">ⓘ</span><span>Cuma KURT · AGPL-3.0-only</span></button>
+      </div>
+    </aside>
+
+    <main id="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button id="mobileMenu" class="icon-btn mobile-only" type="button" aria-label="Open menu">☰</button>
+          <div><h2 id="pageTitle">Dashboard</h2><div id="pageSub">Live collector state</div></div>
+        </div>
+        <div class="topbar-center">
+          <div class="global-search-wrap">
+            <span class="search-icon">⌕</span>
+            <input id="globalSearch" aria-label="Global search" placeholder="Find an IP address…" autocomplete="off" aria-controls="searchResults" aria-expanded="false">
+            <kbd>/</kbd>
+          </div>
+          <div id="searchResults" class="search-results hidden" aria-label="IP search result"></div>
+        </div>
+        <div class="topbar-actions">
+          <span id="liveBadge" class="live-badge">Connecting</span>
+          <button id="themeBtn" class="icon-btn" type="button" title="Toggle theme" aria-label="Toggle theme">☾</button>
+          <button id="refreshBtn" class="icon-btn" type="button" title="Refresh current page" aria-label="Refresh current page">↻</button>
+          <button id="fullscreenBtn" class="icon-btn" type="button" title="Full screen" aria-label="Full screen">⛶</button>
+          <div class="system-chip"><span class="status-orb"></span><span id="collectorTopStatus">Checking collector</span></div>
+        </div>
+      </header>
+      <div id="networkPulse" class="network-pulse" aria-label="Network Pulse"></div>
+      <section id="content" tabindex="-1"></section>
+    </main>
+  </div>
+
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true"><div class="modal-card"><button class="close" type="button" data-modal-close aria-label="Close" title="Close">×</button><div id="modalBody"></div></div></div>
+  <div id="toastStack" class="toast-stack" aria-live="polite"></div>
+  <script src="/portal-state.js"></script>
+  <script src="/insight-state.js"></script>
+  <script src="/insights.js"></script>
+  <script src="/intelligence.js"></script>
+  <script src="/notifications.js"></script>
+  <script src="/engineering.js"></script>
+  <script src="/about.js"></script>
+  <script src="/admin.js"></script>
+  <script src="/services.js"></script>
+  <script src="/traffic-visuals-state.js"></script>
+  <script src="/traffic-visuals.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

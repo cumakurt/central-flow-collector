@@ -1,0 +1,17 @@
+
+Central Flow Collector
+Version: 4.0.0 (release-v4.0.0)
+Node: localhost-394fddf6 region=default
+Config: /tmp/tmp.EXFyXvEBKs/config.yaml
+Web UI: http://127.0.0.1:18080
+Storage: local (/tmp/tmp.EXFyXvEBKs/data)
+Policy: DEFAULT ALLOW
+Enrichment: enabled=false prefixes=0 sites=0
+Traffic baseline: enabled=true min_samples=20 state=/tmp/tmp.EXFyXvEBKs/baseline-state.json
+Web transport: HTTP (TLS disabled; no certificate negotiation or browser certificate warnings)
+Listener: NETFLOW    0.0.0.0:22055/UDP ACTIVE
+Listener: IPFIX      0.0.0.0:24739/UDP ACTIVE
+Listener: SFLOW      0.0.0.0:26343/UDP ACTIVE
+Bootstrap admin created. Temporary credential stored securely at: /tmp/tmp.EXFyXvEBKs/bootstrap-admin.txt
+
+2026/09/14 16:57:51 shutdown signal: terminated

@@ -1,0 +1,36 @@
+## central-flow-collector_4.0.0_amd64.deb
+drwx------ root/root         0 2026-09-14 16:58 ./
+drwxr-xr-x root/root         0 2026-09-14 16:58 ./etc/
+drwxr-xr-x root/root         0 2026-09-14 16:58 ./etc/flowcollector/
+-rw-r----- root/root      3671 2026-09-14 16:58 ./etc/flowcollector/config.yaml
+drwxr-xr-x root/root         0 2026-09-14 16:58 ./lib/
+drwxr-xr-x root/root         0 2026-09-14 16:58 ./lib/systemd/
+drwxr-xr-x root/root         0 2026-09-14 16:58 ./lib/systemd/system/
+-rw-r--r-- root/root       920 2026-09-14 16:58 ./lib/systemd/system/flowcollector.service
+drwxr-xr-x root/root         0 2026-09-14 16:58 ./usr/
+drwxr-xr-x root/root         0 2026-09-14 16:58 ./usr/local/
+drwxr-xr-x root/root         0 2026-09-14 16:58 ./usr/local/bin/
+-rwxr-xr-x root/root   9031832 2026-09-14 16:58 ./usr/local/bin/flowcollector
+drwxr-xr-x root/root         0 2026-09-14 16:58 ./var/
+drwxr-xr-x root/root         0 2026-09-14 16:58 ./var/lib/
+drwxr-xr-x root/root         0 2026-09-14 16:58 ./var/lib/flowcollector/
+drwxr-xr-x root/root         0 2026-09-14 16:58 ./var/log/
+drwxr-xr-x root/root         0 2026-09-14 16:58 ./var/log/flowcollector/
+## central-flow-collector_4.0.0_arm64.deb
+drwx------ root/root         0 2026-09-14 16:58 ./
+drwxr-xr-x root/root         0 2026-09-14 16:58 ./etc/
+drwxr-xr-x root/root         0 2026-09-14 16:58 ./etc/flowcollector/
+-rw-r----- root/root      3671 2026-09-14 16:58 ./etc/flowcollector/config.yaml
+drwxr-xr-x root/root         0 2026-09-14 16:58 ./lib/
+drwxr-xr-x root/root         0 2026-09-14 16:58 ./lib/systemd/
+drwxr-xr-x root/root         0 2026-09-14 16:58 ./lib/systemd/system/
+-rw-r--r-- root/root       920 2026-09-14 16:58 ./lib/systemd/system/flowcollector.service
+drwxr-xr-x root/root         0 2026-09-14 16:58 ./usr/
+drwxr-xr-x root/root         0 2026-09-14 16:58 ./usr/local/
+drwxr-xr-x root/root         0 2026-09-14 16:58 ./usr/local/bin/
+-rwxr-xr-x root/root   8585368 2026-09-14 16:58 ./usr/local/bin/flowcollector
+drwxr-xr-x root/root         0 2026-09-14 16:58 ./var/
+drwxr-xr-x root/root         0 2026-09-14 16:58 ./var/lib/
+drwxr-xr-x root/root         0 2026-09-14 16:58 ./var/lib/flowcollector/
+drwxr-xr-x root/root         0 2026-09-14 16:58 ./var/log/
+drwxr-xr-x root/root         0 2026-09-14 16:58 ./var/log/flowcollector/

@@ -1,0 +1,14 @@
+flowcollector-linux-amd64: OK
+flowcollector-linux-arm64: OK
+flowgen-linux-amd64: OK
+flowgen-linux-arm64: OK
+chbench-linux-amd64: OK
+chbench-linux-arm64: OK
+flowbench-linux-amd64: OK
+flowbench-linux-arm64: OK
+querybench-linux-amd64: OK
+querybench-linux-arm64: OK
+central-flow-collector_4.0.0_amd64.deb: OK
+central-flow-collector_4.0.0_arm64.deb: OK
+SBOM.cdx.json: OK
+SBOM.spdx.json: OK

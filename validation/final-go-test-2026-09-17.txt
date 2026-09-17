@@ -1,0 +1,8 @@
+?   	central-flow-collector	[no test files]
+?   	central-flow-collector/cmd/chbench	[no test files]
+?   	central-flow-collector/cmd/flowbench	[no test files]
+?   	central-flow-collector/cmd/querybench	[no test files]
+ok  	central-flow-collector/cmd/flowcollector	0.008s
+ok  	central-flow-collector/cmd/flowgen	0.009s
+ok  	central-flow-collector/internal/adminops	0.014s
+ok  	central-flow-collector/internal/analytics	0.011s

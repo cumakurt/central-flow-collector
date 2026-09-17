@@ -1,0 +1,161 @@
+# Central Flow Collector v4.0.0 — single-organization flow analytics configuration
+node:
+  id: ""
+  region: "default"
+
+web:
+  bind: "127.0.0.1"
+  port: 8080
+  tls: false
+  cert_file: ""
+  key_file: ""
+
+storage:
+  # local | clickhouse
+  backend: "local"
+  data_dir: "/var/lib/flowcollector"
+  retention_days: 7
+  clickhouse_url: "http://127.0.0.1:8123"
+  clickhouse_database: "flowcollector"
+  clickhouse_table: "flows"
+  clickhouse_user: "default"
+  # Prefer @env:NAME or @file:/path for secrets.
+  clickhouse_password: ""
+  clickhouse_batch_size: 2000
+  clickhouse_flush_ms: 1000
+  clickhouse_queue_size: 65536
+  clickhouse_cluster: ""
+  clickhouse_distributed_table: "flows_distributed"
+  clickhouse_replica_path: "/clickhouse/tables/{shard}/flowcollector/flows"
+  clickhouse_replica_name: "{replica}"
+  clickhouse_spool_enabled: true
+  clickhouse_spool_max_bytes: 2147483648
+  clickhouse_spool_replay_seconds: 5
+  clickhouse_spool_segment_bytes: 67108864
+  clickhouse_spool_fsync: true
+  clickhouse_query_timeout_ms: 12000
+  clickhouse_max_result_rows: 100000
+  clickhouse_max_execution_seconds: 12
+  clickhouse_storage_policy: ""
+  clickhouse_cold_volume: ""
+  clickhouse_cold_after_days: 0
+
+security:
+  default_policy: "deny"
+  session_hours: 8
+  bootstrap_file: "/var/lib/flowcollector/bootstrap-admin.txt"
+  require_mfa: false
+  exporter_packets_per_second: 50000
+  exporter_burst: 100000
+  diagnostics_enabled: false
+
+# Single-organization RBAC roles: administrator, analyst, read_only.
+oidc:
+  enabled: false
+  issuer: ""
+  client_id: ""
+  client_secret: ""
+  redirect_url: ""
+  default_role: "read_only"
+  # Exact group mappings separated by semicolons.
+  # Legacy operator/network_operator/security_admin values normalize to analyst.
+  group_role_map: ""
+
+ldap:
+  enabled: false
+  url: "ldaps://ldap.example.com:636"
+  bind_dn: ""
+  bind_password: ""
+  base_dn: ""
+  user_attribute: "sAMAccountName"
+  user_dn_template: ""
+  group_attribute: "memberOf"
+  group_role_map: ""
+  default_role: "read_only"
+  allow_insecure: false
+
+logging:
+  json: true
+  level: "info"
+
+enrichment:
+  enabled: true
+  prefix_file: "/var/lib/flowcollector/enrichment/geoasn.csv"
+  # Local CIDR data is preferred. Public IPs missing locally use ipwho.is (no API key).
+  remote_enabled: true
+  remote_url: "https://ipwho.is"
+
+# Operational flow analytics only. These settings do not implement NDR/IDS.
+analytics:
+  baseline_enabled: true
+  baseline_min_samples: 20
+  baseline_state_file: "/var/lib/flowcollector/baseline-state.json"
+  baseline_save_seconds: 60
+  dedup_enabled: true
+  dedup_window_seconds: 30
+  dedup_max_entries: 200000
+  max_tracked_hosts: 20000
+  max_dimension_keys: 100000
+
+notifications:
+  webhook_url: ""
+  webhook_secret: ""
+  telegram_bot_token: ""
+  telegram_chat_id: ""
+  smtp_addr: ""
+  smtp_from: ""
+  smtp_to: ""
+  smtp_username: ""
+  smtp_password: ""
+  syslog_addr: ""
+
+cluster:
+  heartbeat_url: ""
+  shared_token_file: "/etc/flowcollector/cluster.token"
+  heartbeat_seconds: 30
+  node_timeout_seconds: 90
+  allow_insecure_http: false
+  expected_nodes: 1
+  global_dedup_enabled: false
+  global_dedup_url: ""
+  global_dedup_timeout_ms: 300
+  global_dedup_max_entries: 500000
+  require_mtls: false
+  ca_file: ""
+  cert_file: ""
+  key_file: ""
+  server_name: ""
+
+listeners:
+  # IPFIX stream exporters can use transport: "tcp" or "sctp". Keep the
+  # protocol as "ipfix"; TLS/DTLS should be terminated before this listener.
+  - name: "netflow"
+    bind: "0.0.0.0"
+    port: 2055
+    protocol: "netflow"
+    transport: "udp"
+    workers: 4
+    queue_size: 8192
+    read_buffer: 4194304
+    batch_size: 16
+    enabled: true
+  - name: "ipfix"
+    bind: "0.0.0.0"
+    port: 4739
+    protocol: "ipfix"
+    transport: "udp"
+    workers: 4
+    queue_size: 8192
+    read_buffer: 4194304
+    batch_size: 16
+    enabled: true
+  - name: "sflow"
+    bind: "0.0.0.0"
+    port: 6343
+    protocol: "sflow"
+    transport: "udp"
+    workers: 4
+    queue_size: 8192
+    read_buffer: 4194304
+    batch_size: 16
+    enabled: true

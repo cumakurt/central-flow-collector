@@ -1,0 +1,6 @@
+apiVersion: v2
+name: central-flow-collector
+description: Central Flow Collector & Flow Analytics Platform
+type: application
+version: 4.0.0
+appVersion: "4.0.0"

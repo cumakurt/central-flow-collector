@@ -1,0 +1,10 @@
+YAML OK config.example.yaml
+YAML OK openapi.yaml
+YAML OK docs/openapi.yaml
+YAML OK deploy/docker/docker-compose.yml
+YAML OK deploy/helm/central-flow-collector/Chart.yaml
+YAML OK deploy/helm/central-flow-collector/values.yaml
+JSON OK dist/SBOM.spdx.json
+JSON OK dist/SBOM.cdx.json
+JSON OK validation/querybench-v4.json
+JSON OK validation/smoke-flowbench.json

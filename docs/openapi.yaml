@@ -1,0 +1,1331 @@
+openapi: 3.0.3
+info:
+  title: Central Flow Collector API
+  version: 4.0.0
+  description: Single-organization central flow collection and flow analytics API.
+servers:
+  - url: /
+paths:
+  /api/v1/notifications/rules:
+    get:
+      summary: Read operational and seasonal notification rules
+      description: Requires view permission. Seasonal rules use hourly complete UTC intervals and three or four comparable unsampled weeks.
+      responses:
+        "200": {description: Rule definitions}
+        "401": {description: Authentication required}
+        "503": {description: Notification state unavailable}
+    post:
+      summary: Save an operational or seasonal notification rule
+      description: Requires system.manage permission. For kind seasonal, window_seconds and interval_seconds must be 3600, for_seconds at least 3600, operator gt, threshold a MAD multiplier between 2 and 10, and minimum_current a positive absolute deviation floor. Optional recovery_threshold is the recovery multiplier. Existing policy_id, condition tree, group_by, cooldown_seconds, schedule and recovery fields apply. Saved rules remain disabled unless enabled is explicitly true.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {type: object}
+      responses:
+        "200": {description: Saved rule and revision}
+        "400": {description: Invalid rule or policy}
+        "403": {description: Administrator permission required}
+  /api/v1/notifications/simulate:
+    post:
+      summary: Simulate a rule using the production evaluator and lifecycle
+      description: Requires system.manage permission. Accepts rule, from and to; the simulation period is at most 24 hours. Seasonal rules read four historical weekly comparison windows for each hourly evaluation. No messages are sent and live alert state is unchanged. Results include withheld_evaluations, lifecycle counts and latest production-rendered HTML and Telegram preview when a delivery would occur.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rule, from, to]
+              properties:
+                rule: {type: object}
+                from: {type: string, format: date-time}
+                to: {type: string, format: date-time}
+      responses:
+        "200": {description: Simulation counts and message preview}
+        "403": {description: Administrator permission required}
+        "422": {description: Invalid simulation or unavailable historical data}
+  /api/v1/engineering/{resource}:
+    get:
+      summary: Routing, QoS, NAT or flow field coverage analytics
+      parameters:
+        - {name: resource, in: path, required: true, schema: {type: string, enum: [routing, qos, nat, coverage]}}
+        - {name: from, in: query, schema: {type: string, format: date-time}}
+        - {name: to, in: query, schema: {type: string, format: date-time}}
+      responses: {"200": {description: Bounded engineering summary}}
+  /api/v1/capacity/simulate:
+    post:
+      summary: Simulate retention and sampling changes without applying configuration
+      requestBody: {required: true, content: {application/json: {schema: {type: object}}}}
+      responses: {"200": {description: Explainable scenario estimate}}
+  /api/v1/admin/backups:
+    get:
+      summary: GET admin backups
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/admin/backups/create:
+    post:
+      summary: POST admin backups create
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/admin/backups/restore:
+    post:
+      summary: POST admin backups restore
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/admin/backups/verify:
+    post:
+      summary: POST admin backups verify
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/admin/config/rollback:
+    post:
+      summary: POST admin config rollback
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/admin/config/versions:
+    get:
+      summary: GET admin config versions
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/admin/database/test:
+    post:
+      summary: POST admin database test
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/admin/maintenance/{action}:
+    post:
+      summary: POST admin maintenance action
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/admin/notifications/test:
+    post:
+      summary: POST admin notifications test
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/admin/overview:
+    get:
+      summary: GET admin overview
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/admin/restart:
+    post:
+      summary: POST admin restart
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/admin/settings:
+    get:
+      summary: GET admin settings
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/admin/settings/apply:
+    post:
+      summary: POST admin settings apply
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/admin/settings/validate:
+    post:
+      summary: POST admin settings validate
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/admin/upgrade/preflight:
+    get:
+      summary: GET admin upgrade preflight
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/alert-rules:
+    get:
+      summary: GET alert-rules
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+    post:
+      summary: POST alert-rules
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/alert-rules/{type}:
+    delete:
+      summary: DELETE alert-rules type
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/alerts:
+    get:
+      summary: GET alerts
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/alerts/{id}/ack:
+    post:
+      summary: POST alerts id ack
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/analytics:
+    get:
+      summary: GET analytics
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/analytics/service-catalog:
+    get:
+      summary: List standard service definitions for service traffic analysis
+      description: Requires analytics.read permission. Definitions are protocol-aware and are used by the Service Timeline and service flow filter.
+      responses:
+        "200": {description: Service catalog and maximum selectable series}
+        "401": {description: Authentication required}
+        "403": {description: Permission denied}
+  /api/v1/analytics/service-series:
+    get:
+      summary: Multi-series service, port, protocol or application timeline
+      description: Requires analytics.read permission. Aggregates up to eight selected series in one storage analysis. Standard flow predicates, from and to can further scope the population.
+      parameters:
+        - {name: series_service, in: query, description: Repeatable standard service ID., schema: {type: string}}
+        - {name: series_port, in: query, description: Repeatable either-endpoint port selector such as tcp:8443, udp:53, sctp:2905 or any:1234., schema: {type: string}}
+        - {name: series_protocol, in: query, description: Repeatable IP protocol name or number., schema: {type: string}}
+        - {name: series_app, in: query, description: Repeatable exporter-provided application value., schema: {type: string}}
+        - {name: from, in: query, schema: {type: string, format: date-time}}
+        - {name: to, in: query, schema: {type: string, format: date-time}}
+      responses:
+        "200": {description: Per-series totals and aligned timeline points}
+        "400": {description: Invalid selector or flow filter}
+        "401": {description: Authentication required}
+        "403": {description: Permission denied}
+        "408": {description: Cancelled or timed out}
+  /api/v1/analytics/baseline:
+    get:
+      summary: GET analytics baseline
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/analytics/query:
+    get:
+      summary: Bounded advanced analysis over complete flow populations
+      description: Uses analytics.read permission. Downloads also require flows.export. Raw periods are limited to 31 days, grouped results to 20000, time buckets to 2000 and concurrent requests to two. Standard flow predicates apply. Time windows are UTC and half-open. Counters are observed, never silently extrapolated for sampling.
+      parameters:
+        - {name: kind, in: query, schema: {type: string, enum: [changes, concentration, distribution, relationships, diversity, temporal, quality, persistence, anomalies], default: changes}}
+        - {name: event_state, in: query, description: Optional retrospective anomaly episode filter applied before the result limit., schema: {type: string, enum: [PENDING, ACTIVE, RECOVERED]}}
+        - {name: dimension, in: query, schema: {type: string, default: application}}
+        - {name: peer, in: query, schema: {type: string, default: dst_ip}}
+        - {name: metric, in: query, schema: {type: string, enum: [bytes, packets, flows], default: bytes}}
+        - {name: bucket, in: query, schema: {type: integer, enum: [60, 300, 900, 3600, 86400], default: 3600}}
+        - {name: top, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 25}}
+        - {name: bins, in: query, schema: {type: integer, minimum: 4, maximum: 64, default: 24}}
+        - {name: strategy, in: query, schema: {type: string, enum: [linear, logarithmic], default: logarithmic}}
+        - {name: threshold, in: query, schema: {type: number, minimum: 50, maximum: 99.9, default: 99}}
+        - {name: capacity_bps, in: query, schema: {type: number, minimum: 0, maximum: 1000000000000000, default: 0}}
+        - {name: format, in: query, schema: {type: string, enum: [csv, json]}}
+        - {name: from, in: query, schema: {type: string, format: date-time}}
+        - {name: to, in: query, schema: {type: string, format: date-time}}
+      responses:
+        "200": {description: Statistics, bounded rows, method, sampling coverage and query metadata; or CSV/JSON attachment}
+        "400": {description: Invalid analytical specification or filter}
+        "401": {description: Authentication required}
+        "403": {description: Read or export permission denied}
+        "408": {description: Cancelled or timed out}
+        "422": {description: Range, bucket or cardinality guard exceeded, or storage unavailable}
+        "429": {description: Advanced query concurrency limit reached}
+  /api/v1/analytics/compare:
+    get:
+      summary: GET analytics compare
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/analytics/matrix:
+    get:
+      summary: GET analytics matrix
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/api-tokens:
+    get:
+      summary: GET api-tokens
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+    post:
+      summary: POST api-tokens
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/api-tokens/{id}:
+    delete:
+      summary: DELETE api-tokens id
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/assets:
+    get:
+      summary: GET assets
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/audit:
+    get:
+      summary: GET audit
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/audit/verify:
+    get:
+      summary: GET audit verify
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/auth/change-password:
+    post:
+      summary: POST auth change-password
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/auth/ldap/login:
+    post:
+      summary: POST auth ldap login
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/auth/ldap/status:
+    get:
+      summary: GET auth ldap status
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/auth/login:
+    post:
+      summary: POST auth login
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/auth/logout:
+    post:
+      summary: POST auth logout
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/auth/me:
+    get:
+      summary: GET auth me
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/auth/mfa/status:
+    get:
+      summary: GET auth mfa status
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/auth/mfa/totp/begin:
+    post:
+      summary: POST auth mfa totp begin
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/auth/mfa/totp/confirm:
+    post:
+      summary: POST auth mfa totp confirm
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/auth/mfa/totp/disable:
+    post:
+      summary: POST auth mfa totp disable
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/auth/oidc/callback:
+    get:
+      summary: GET auth oidc callback
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/auth/oidc/start:
+    get:
+      summary: GET auth oidc start
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/auth/oidc/status:
+    get:
+      summary: GET auth oidc status
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/auth/permissions:
+    get:
+      summary: GET auth permissions
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/auth/webauthn/assert/finish:
+    post:
+      summary: POST auth webauthn assert finish
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/auth/webauthn/assert/options:
+    post:
+      summary: POST auth webauthn assert options
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/auth/webauthn/register/finish:
+    post:
+      summary: POST auth webauthn register finish
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/auth/webauthn/register/options:
+    post:
+      summary: POST auth webauthn register options
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/cluster:
+    get:
+      summary: GET cluster
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/cluster/assignment:
+    get:
+      summary: GET cluster assignment
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/cluster/commands:
+    get:
+      summary: GET cluster commands
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+    post:
+      summary: POST cluster commands
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/cluster/dedup:
+    post:
+      summary: POST cluster dedup
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/cluster/heartbeat:
+    post:
+      summary: POST cluster heartbeat
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/cluster/rollouts:
+    get:
+      summary: GET cluster rollouts
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+    post:
+      summary: POST cluster rollouts
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/cluster/rollouts/{id}/advance:
+    post:
+      summary: POST cluster rollouts id advance
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/conversations:
+    get:
+      summary: GET conversations
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/dashboard:
+    get:
+      summary: GET dashboard
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/enrichment/reload:
+    post:
+      summary: POST enrichment reload
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/enrichment/status:
+    get:
+      summary: GET enrichment status
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/exporters:
+    get:
+      summary: GET exporters
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/exporters/health:
+    get:
+      summary: GET exporters health
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/exporters/templates:
+    get:
+      summary: GET exporters templates
+      description: Template metadata includes listener, source_port, scope_count, and bounded options records when present. Templates are isolated by UDP transport session and observation domain.
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/flows:
+    get:
+      summary: GET flows
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/flows/export:
+    get:
+      summary: GET flows export
+      description: Download matching flows using the standard flow filters and time range.
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 10000
+            default: 500
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [csv, json]
+            default: csv
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/flows/page:
+    get:
+      summary: GET flows page
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/health:
+    get:
+      summary: GET health
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/ip/{ip}:
+    get:
+      summary: GET ip ip
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/listeners:
+    get:
+      summary: GET listeners
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/live/events:
+    get:
+      summary: GET live events
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/onboarding/check:
+    get:
+      summary: GET onboarding check
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/onboarding/render:
+    post:
+      summary: POST onboarding render
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/onboarding/vendors:
+    get:
+      summary: GET onboarding vendors
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/policies:
+    get:
+      summary: GET policies
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+    post:
+      summary: POST policies
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/policies/simulate:
+    post:
+      summary: POST policies simulate
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/policies/{id}:
+    delete:
+      summary: DELETE policies id
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/rejections:
+    get:
+      summary: GET rejections
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/reports:
+    get:
+      summary: GET reports
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+    post:
+      summary: POST reports
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/reports/export:
+    post:
+      summary: POST reports export
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/reports/{id}:
+    delete:
+      summary: DELETE reports id
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/reports/{id}/run:
+    post:
+      summary: POST reports id run
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/search-history:
+    get:
+      summary: GET search-history
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/searches:
+    get:
+      summary: GET searches
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+    post:
+      summary: POST searches
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/searches/{id}:
+    delete:
+      summary: DELETE searches id
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/sites:
+    get:
+      summary: GET sites
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+    post:
+      summary: POST sites
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/sites/{id}:
+    delete:
+      summary: DELETE sites id
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/storage:
+    get:
+      summary: GET storage
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/storage/capacity:
+    get:
+      summary: GET storage capacity
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/storage/purge:
+    post:
+      summary: POST storage purge
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/storage/retention:
+    post:
+      summary: POST storage retention
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/topology:
+    get:
+      summary: GET topology
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /api/v1/users:
+    get:
+      summary: GET users
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+    post:
+      summary: POST users
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /health:
+    get:
+      summary: GET  health
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /metrics:
+    get:
+      summary: GET  metrics
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied
+  /ready:
+    get:
+      summary: GET  ready
+      responses:
+        "200":
+          description: Success
+        "400":
+          description: Invalid request
+        "401":
+          description: Authentication required
+        "403":
+          description: Permission denied

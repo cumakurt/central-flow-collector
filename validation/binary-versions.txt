@@ -1,0 +1,21 @@
+## chbench-linux-amd64
+## flowbench-linux-amd64
+target=127.0.0.1:2055 duration=10.00s workers=5 flows/packet=30
+packets=1784214 flows=53526420 errors=1784212 throughput=178404 pkt/s 5352121 flow/s 249.08 MiB/s
+udp-write latency p50=3.06us p95=8.47us p99=33.66us alloc=5418.37MiB gc=2108 GOMAXPROCS=5
+## flowcollector-linux-amd64
+flowcollector 4.0.0
+commit: release-v4.0.0
+build_time: 2026-09-14T19:30:00Z
+go: go1.23.2
+## flowgen-linux-amd64
+## querybench-linux-amd64
+Local query benchmark · 50000 synthetic flows
+last_15m_top_sources         p50=   38.89 ms p95=   40.39 ms items=20
+last_24h_top_destinations    p50=  149.46 ms p95=  158.44 ms items=20
+last_7d_traffic_trend        p50=  726.46 ms p95=  759.88 ms items=673
+ip_search                    p50=  401.27 ms p95=  421.11 ms items=1
+asn_aggregation              p50=  140.48 ms p95=  149.48 ms items=20
+country_aggregation          p50=  142.79 ms p95=  144.98 ms items=6
+protocol_aggregation         p50=  137.44 ms p95=  147.86 ms items=2
+exporter_statistics          p50=  136.26 ms p95=  149.20 ms items=16

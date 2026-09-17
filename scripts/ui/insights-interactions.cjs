@@ -1,0 +1,102 @@
+/* Exercise the real HTTP API and browser. Seed the isolated collector via seed-lab.cjs. */
+const fs = require('node:fs');
+const assert = require('node:assert/strict');
+const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const base = process.env.CFC_REVIEW_URL || 'http://127.0.0.1:18082';
+
+(async()=>{
+  const password = fs.readFileSync(process.env.CFC_REVIEW_CREDENTIAL_FILE,'utf8').match(/^password: (.+)$/m)?.[1];
+  if (!password) throw Error('A local test credential file is required');
+  const browser = await chromium.launch({executablePath:process.env.CHROMIUM_PATH || '/usr/bin/chromium',headless:true});
+  try {
+    const context = await browser.newContext({viewport:{width:1366,height:768},acceptDownloads:true});
+    const page = await context.newPage(), errors=[], requests=[];
+    page.on('pageerror',error=>errors.push(error.message));
+    page.on('request',request=>{if(request.url().includes('/api/v1/'))requests.push(request.url())});
+    await page.goto(base);
+    await page.locator('.login-credit').click();await page.locator('.product-about').waitFor();
+    assert.match(await page.locator('.product-about').innerText(),/Cuma KURT/);
+    assert.equal(await page.locator('.about-details a[href^="mailto:"]').getAttribute('href'),'mailto:cumakurt@gmail.com');
+    assert.equal(await page.locator('.about-details a[href*="linkedin"]').getAttribute('href'),'https://www.linkedin.com/in/cuma-kurt-34414917/');
+    assert.equal(await page.locator('.about-details a[href*="github"]').getAttribute('href'),'https://github.com/cumakurt/central-flow-collector');
+    const license=await context.request.get(base+'/LICENSE');assert.equal(license.status(),200);assert.match(await license.text(),/GNU AFFERO GENERAL PUBLIC LICENSE/);
+    if(process.env.CFC_ABOUT_SCREENS){
+      fs.mkdirSync(process.env.CFC_ABOUT_SCREENS,{recursive:true});
+      for(const theme of ['dark','light'])for(const [width,height] of [[2560,1440],[1920,1080],[1440,900],[1366,768]]){
+        await page.evaluate(theme=>{localStorage.setItem('cfc-theme',theme);themeInit()},theme);
+        await page.setViewportSize({width,height});
+        assert.ok(await page.evaluate(()=>document.body.scrollWidth<=innerWidth));
+        await page.screenshot({path:process.env.CFC_ABOUT_SCREENS+`/about-${theme}-${width}x${height}.png`,fullPage:true});
+      }
+    }
+    await page.locator('.about-details a').last().focus();await page.keyboard.press('Tab');
+    assert.ok(await page.locator('#modal .close').evaluate(button=>button===document.activeElement),'Tab should wrap inside the About dialog');
+    await page.keyboard.press('Escape');await page.locator('#modal').waitFor({state:'hidden'});
+    await page.setViewportSize({width:1366,height:768});
+    await page.locator('#username').fill('admin');await page.locator('#password').fill(password);
+    await page.locator('#loginForm button.primary').click();await page.locator('#app').waitFor({state:'visible'});
+    const ready = async()=>{await page.waitForFunction(()=>!document.querySelector('#content .loading-state'));assert.equal(await page.locator('#content .error-state').count(),0)};
+    const open = async(query)=>{await page.goto(`${base}/?${query}`);await page.locator('#app').waitFor({state:'visible'});await ready()};
+    await open('page=overview&range=24h');
+    assert.ok(await page.evaluate(()=>[...chartData.values()][0].data.every((point,index,rows)=>!index || new Date(point.timestamp)-new Date(rows[index-1].timestamp)===300000)),'Overview timeline must not interpolate across missing buckets');
+    await open('page=analytics&range=24h');
+    await page.locator('.insight-tabs [data-route="changes"]').click();await page.locator('#intelligenceOut table').waitFor();
+    const compareCount=requests.filter(url=>url.includes('/analytics/query?')).length;
+    await page.locator('#intelDimension').selectOption('protocol');await page.locator('#intelExport:not([disabled])').waitFor();await page.locator('#intelMetric').selectOption('packets');await page.locator('#intelExport:not([disabled])').waitFor();
+    assert.ok(requests.filter(url=>url.includes('/analytics/query?')).length>compareCount,'dimension and metric changes require server-side population aggregation');
+    assert.equal(new URL(page.url()).searchParams.get('metric'),'packets');
+    await page.reload();await ready();assert.equal(await page.locator('#intelMetric').inputValue(),'packets');
+    const protocol=page.locator('[data-intelligence-row]').first();
+    assert.ok(await protocol.count(),'Seed real flows before running this test');
+    const protocolKey=await protocol.textContent();await protocol.click();await ready();
+    assert.equal(new URL(page.url()).searchParams.get('page'),'flows');assert.equal(new URL(page.url()).searchParams.get('ip_protocol'),protocolKey);
+    await open('page=bandwidth&range=24h&bucket=300');
+    assert.ok(await page.locator('[data-intelligence-peak]').count(),'At least one complete interval of real flows is required');
+    await page.locator('[data-intelligence-peak]').first().click();await ready();
+    let params=new URL(page.url()).searchParams;
+    assert.equal(params.get('page'),'flows');assert.equal(params.get('range'),'custom');
+    assert.equal(new Date(params.get('to'))-new Date(params.get('from')),299999);
+    await open('page=endpoints&range=24h&ip_protocol=UDP');
+    assert.ok(await page.locator('[data-endpoint]').count());
+    await page.locator('#endpointMetric').selectOption('peers');await ready();
+    await page.locator('#endpointLimit').selectOption('25');await ready();
+    assert.equal(new URL(page.url()).searchParams.get('metric'),'peers');assert.equal(new URL(page.url()).searchParams.get('limit'),'25');
+    const requestURL=requests.filter(url=>url.includes('/assets?')).at(-1);
+    const response=await context.request.get(requestURL), assets=await response.json();
+    assert.ok(assets.every(row=>row.protocols.every(protocol=>protocol===17)),'endpoint totals must only include UDP flows');
+    assert.ok(assets.every((row,index)=>!index || assets[index-1].peers>=row.peers));
+    const downloadPromise=page.waitForEvent('download');await page.locator('#insightExport').click();
+    const download=await downloadPromise, exported=fs.readFileSync(await download.path(),'utf8');
+    assert.match(exported,/"bytes_in"/);assert.equal(exported.split('\r\n').length,assets.length+1);
+    await page.locator('[data-endpoint]').first().click();await ready();
+    params=new URL(page.url()).searchParams;assert.equal(params.get('host'),assets[0].ip);assert.equal(params.get('ip_protocol'),'UDP');
+    await open('page=conversations&range=24h&ip_protocol=TCP');
+    const conversationURL=requests.filter(url=>url.includes('/conversations?')).at(-1);
+    const conversations=await (await context.request.get(conversationURL)).json();
+    assert.ok(conversations.length);assert.ok(conversations.every(row=>row.protocol===6));
+    await page.locator('[data-conversation="0"][data-reverse="1"]').click();await ready();
+    params=new URL(page.url()).searchParams;
+    assert.equal(params.get('src_ip'),conversations[0].b_ip);assert.equal(params.get('dst_ip'),conversations[0].a_ip);
+    assert.equal(params.get('src_port'),String(conversations[0].b_port));assert.equal(params.get('dst_port'),String(conversations[0].a_port));
+    await open('page=endpoints&range=24h&host=192.0.2.254');
+    assert.ok(await page.locator('#endpointOut .empty').count());assert.ok(await page.locator('#insightExport').isDisabled());
+    await page.locator('[data-remove-filter="host"]').click();await ready();assert.ok(await page.locator('[data-endpoint]').count());
+    await page.locator('[data-add-filter]').click();await page.locator('#filterField').selectOption('ip_protocol');await page.locator('#filterValue').fill('UDP');
+    await page.locator('#filterForm button[type="submit"]').click();await ready();assert.equal(new URL(page.url()).searchParams.get('ip_protocol'),'UDP');
+    await page.reload();await ready();assert.equal(await page.locator('.filter-chip b').innerText(),'UDP');
+    await page.locator('.insight-tabs [data-route="conversations"]').click();await ready();
+    assert.equal(new URL(page.url()).searchParams.get('ip_protocol'),'UDP');
+    await open('page=endpoints&range=24h&host='+encodeURIComponent(assets[0].ip));
+    const peer=page.locator('.insight-ledger [data-ip]').filter({hasNotText:assets[0].ip}).first();
+    const peerIP=await peer.getAttribute('data-ip');await peer.click();await ready();
+    assert.equal(new URL(page.url()).searchParams.get('ip'),peerIP);assert.equal(new URL(page.url()).searchParams.get('host'),peerIP);
+    await page.goto(`${base}/?page=endpoints&range=custom&from=2020-01-01T00:00:00Z&to=2026-01-01T00:00:00Z`);
+    await page.locator('#content .error-state').waitFor();assert.ok(await page.locator('#rangeSelect').isVisible());
+    await page.locator('#rangeSelect').selectOption('24h');await ready();assert.ok(await page.locator('[data-endpoint]').count());
+    await page.locator('#nav [data-page="system"]').click();await ready();
+    await page.locator('.system-tabs [data-about]').click();await page.locator('.product-about').waitFor();
+    assert.match(await page.locator('.product-about').innerText(),/AGPL-3.0-only/);await page.keyboard.press('Escape');
+    assert.deepEqual(errors,[]);
+    console.log(JSON.stringify({result:'passed',checks:['public developer attribution','embedded license','modal keyboard navigation','menu navigation','URL reload','comparison response reuse','P95 interval drill-down','server filter and ranking','bounded CSV export','endpoint lens','reverse conversation filters','empty state','filter editor','IP lens consistency','range error recovery','timeline gaps','System About dialog'],browserErrors:errors.length}));
+  } finally { await browser.close(); }
+})().catch(error=>{console.error(error.stack);process.exitCode=1});
