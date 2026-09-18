@@ -7,8 +7,10 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/hex"
+	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -44,6 +46,7 @@ import (
 	"central-flow-collector/internal/secrets"
 	"central-flow-collector/internal/storage"
 	"central-flow-collector/internal/workspace"
+	"golang.org/x/term"
 )
 
 func main() {
@@ -511,19 +514,54 @@ func userCmd(args []string) {
 	fs := flag.NewFlagSet("user reset-password", flag.ExitOnError)
 	cp := cfgFlag(fs)
 	user := fs.String("username", "admin", "username")
-	pw := fs.String("password", "", "new password (omit to read one line from stdin)")
+	pw := fs.String("password", "", "new password (discouraged; omit to use a hidden interactive prompt)")
 	_ = fs.Parse(args[1:])
+	if strings.TrimSpace(*user) == "" {
+		fatalIf(errors.New("username is required"))
+	}
 	c, e := config.Load(*cp)
 	fatalIf(e)
 	if *pw == "" {
-		fmt.Print("New password: ")
-		line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
-		*pw = strings.TrimSpace(line)
+		*pw, e = readPasswordPair()
+		fatalIf(e)
 	}
 	am, _, e := auth.New(c.Storage.DataDir, c.Security.BootstrapFile, time.Duration(c.Security.SessionHours)*time.Hour)
 	fatalIf(e)
 	fatalIf(am.ResetPassword(*user, *pw))
 	fmt.Printf("Password reset for %s. Existing sessions invalidated.\n", *user)
+}
+
+func readPasswordPair() (string, error) {
+	first, err := readConsolePassword("New password (hidden): ")
+	if err != nil {
+		return "", err
+	}
+	second, err := readConsolePassword("Repeat new password (hidden): ")
+	if err != nil {
+		return "", err
+	}
+	if first != second {
+		return "", errors.New("password confirmation does not match")
+	}
+	return first, nil
+}
+
+func readConsolePassword(prompt string) (string, error) {
+	fmt.Fprint(os.Stderr, prompt)
+	fd := int(os.Stdin.Fd())
+	if term.IsTerminal(fd) {
+		value, err := term.ReadPassword(fd)
+		fmt.Fprintln(os.Stderr)
+		if err != nil {
+			return "", fmt.Errorf("read password: %w", err)
+		}
+		return string(value), nil
+	}
+	line, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) {
+		return "", fmt.Errorf("read password: %w", err)
+	}
+	return strings.TrimRight(line, "\r\n"), nil
 }
 func policyCmd(args []string) {
 	if len(args) < 1 || args[0] != "test" {

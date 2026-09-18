@@ -142,6 +142,7 @@ Management access can be restricted from **System → Admin Settings → Managem
 The screenshots below were captured from a local instance populated with generated NetFlow traffic. They cover the overview, flow explorer, and the management access policy screen.
 
 ![Network overview](docs/screenshots/overview.png)
+![Secure sign-in](docs/screenshots/login.png)
 
 ![Flow explorer](docs/screenshots/flow-explorer.png)
 
@@ -388,6 +389,30 @@ flowcollector repair check --config /etc/flowcollector/config.yaml
 ```
 
 Run `flowcollector --help` for the complete command inventory.
+
+#### Local-console password recovery
+
+The portal deliberately has no “forgot password” endpoint. This prevents a remotely reachable management page from becoming a password-reset channel. An operator with access to the collector host must run the reset command from its local console (or through an already authenticated administrative shell). The command invalidates every active session for that user and clears the temporary-password flag.
+
+The safest interactive form does not expose the new password in shell history, process listings, service logs, or terminal output:
+
+```bash
+sudo /usr/local/bin/flowcollector user reset-password \
+  --config /etc/flowcollector/config.yaml \
+  --username alice
+# New password (hidden):
+# Repeat new password (hidden):
+```
+
+The two entries must match and satisfy the normal password policy (at least 12 characters with upper/lowercase, a number, and a symbol). Existing sessions are revoked immediately, so the user must sign in again. For a non-interactive recovery job, provide exactly two newline-separated values on stdin; this keeps the password out of the command line while allowing console automation:
+
+```bash
+printf '%s\n%s\n' 'New-Strong-Pass_42' 'New-Strong-Pass_42' |
+  sudo /usr/local/bin/flowcollector user reset-password \
+    --config /etc/flowcollector/config.yaml --username alice
+```
+
+The `--password` option remains only for tightly controlled automation compatibility and is discouraged because command-line arguments can be visible to other local processes. Never place a reset password in a shared script or ticket. The command must be run with permission to read the configuration and write the configured data directory.
 
 ## Operations and security
 

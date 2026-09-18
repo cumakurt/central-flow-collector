@@ -142,6 +142,7 @@ Yönetim paneli erişimi **System → Admin Settings → Management access polic
 Aşağıdaki görseller, sahte NetFlow trafiği üretilmiş yerel bir örnek üzerinde alınmıştır. Genel görünüm, akış gezgini ve yönetim erişim politikası ekranlarını gösterir.
 
 ![Ağ genel görünümü](docs/screenshots/overview.png)
+![Güvenli giriş](docs/screenshots/login.png)
 
 ![Akış gezgini](docs/screenshots/flow-explorer.png)
 
@@ -383,6 +384,30 @@ flowcollector repair check --config /etc/flowcollector/config.yaml
 ```
 
 Tüm komutlar için `flowcollector --help` çalıştırın.
+
+#### Yerel konsoldan parola kurtarma
+
+Portalda kasıtlı olarak “parolamı unuttum” uç noktası bulunmaz. Böylece dışarıdan erişilebilen yönetim panelinin parola değiştirme kanalına dönüşmesi engellenir. Operatör, collector sunucusunun yerel konsolundan (veya zaten yetkili bir yönetim kabuğundan) reset komutunu çalıştırmalıdır. Komut kullanıcının tüm aktif oturumlarını iptal eder ve geçici parola işaretini kaldırır.
+
+En güvenli etkileşimli kullanım, yeni parolayı shell geçmişine, işlem listesine, servis loglarına veya ekrana yazdırmaz:
+
+```bash
+sudo /usr/local/bin/flowcollector user reset-password \
+  --config /etc/flowcollector/config.yaml \
+  --username alice
+# New password (hidden):
+# Repeat new password (hidden):
+```
+
+İki giriş aynı olmalı ve normal parola politikasını karşılamalıdır (en az 12 karakter; büyük/küçük harf, rakam ve sembol). Mevcut oturumlar hemen iptal edildiği için kullanıcı yeniden giriş yapmalıdır. Etkileşimsiz kurtarma işlerinde stdin üzerinden iki satır verilebilir; böylece parola komut satırında görünmez:
+
+```bash
+printf '%s\n%s\n' 'New-Strong-Pass_42' 'New-Strong-Pass_42' |
+  sudo /usr/local/bin/flowcollector user reset-password \
+    --config /etc/flowcollector/config.yaml --username alice
+```
+
+`--password` seçeneği yalnızca kontrollü otomasyon uyumluluğu için korunmuştur ve önerilmez; komut satırı parametreleri aynı makinedeki başka işlemler tarafından görülebilir. Reset parolasını paylaşılan script veya ticket içine yazmayın. Komutun config dosyasını okuyabilmesi ve yapılandırılmış data dizinine yazabilmesi gerekir.
 
 ## Operasyon ve güvenlik
 
