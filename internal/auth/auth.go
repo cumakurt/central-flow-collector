@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -80,6 +81,7 @@ type apiTokenDisk struct {
 type failure struct {
 	Count int
 	Until time.Time
+	InFlight bool
 }
 type Manager struct {
 	mu                         sync.RWMutex
@@ -93,10 +95,13 @@ type Manager struct {
 	pendingTOTP                map[string]string
 	webauthnReg                map[string]webauthnChallenge
 	webauthnAuth               map[string]webauthnChallenge
+	loginSlots                chan struct{}
+	lastCleanup               time.Time
 }
 
 func New(dataDir, bootstrap string, ttl time.Duration) (*Manager, string, error) {
 	m := &Manager{users: map[string]User{}, sessions: map[string]Session{}, failures: map[string]failure{}, tokens: map[string]apiTokenDisk{}, tokenByHash: map[string]string{}, pendingTOTP: map[string]string{}, webauthnReg: map[string]webauthnChallenge{}, webauthnAuth: map[string]webauthnChallenge{}, path: filepath.Join(dataDir, "users.json"), tokenPath: filepath.Join(dataDir, "api-tokens.json"), bootstrap: bootstrap, ttl: ttl}
+	m.loginSlots = make(chan struct{}, 4)
 	if ttl <= 0 {
 		m.ttl = 8 * time.Hour
 	}
@@ -151,13 +156,19 @@ func New(dataDir, bootstrap string, ttl time.Duration) (*Manager, string, error)
 			return nil, "", err
 		}
 		m.users["admin"] = User{Username: "admin", PasswordHash: h, Role: "administrator", MustChange: true, AuthSource: "local"}
+		if bootstrap != "" {
+			if err = os.MkdirAll(filepath.Dir(bootstrap), 0750); err != nil {
+				return nil, "", fmt.Errorf("create bootstrap directory: %w", err)
+			}
+			if err = os.WriteFile(bootstrap, []byte("username: admin\npassword: "+pw+"\nIMPORTANT: change this password immediately after first login.\n"), 0600); err != nil {
+				return nil, "", fmt.Errorf("write bootstrap credential: %w", err)
+			}
+			if err = os.Chmod(bootstrap, 0600); err != nil {
+				return nil, "", fmt.Errorf("protect bootstrap credential: %w", err)
+			}
+		}
 		if err = m.saveLocked(); err != nil {
 			return nil, "", err
-		}
-		if bootstrap != "" {
-			if err = os.MkdirAll(filepath.Dir(bootstrap), 0750); err == nil {
-				_ = os.WriteFile(bootstrap, []byte("username: admin\npassword: "+pw+"\nIMPORTANT: change this password immediately after first login.\n"), 0600)
-			}
 		}
 		return m, pw, nil
 	}
@@ -181,13 +192,13 @@ func verify(stored, pw string) bool {
 	if len(p) != 4 || p[0] != "pbkdf2-sha256" {
 		return false
 	}
-	var iter int
-	if _, e := fmt.Sscanf(p[1], "%d", &iter); e != nil || iter < 10000 {
+	iter, err := strconv.Atoi(p[1])
+	if err != nil || iter < 10000 || iter > 2000000 {
 		return false
 	}
 	salt, e1 := base64.RawStdEncoding.DecodeString(p[2])
 	want, e2 := base64.RawStdEncoding.DecodeString(p[3])
-	if e1 != nil || e2 != nil {
+	if e1 != nil || e2 != nil || len(salt) != 16 || len(want) != 32 {
 		return false
 	}
 	got := pbkdf2([]byte(pw), salt, iter, len(want))
@@ -206,9 +217,9 @@ func pbkdf2(password, salt []byte, iter, keyLen int) []byte {
 		u := mac.Sum(nil)
 		t := append([]byte(nil), u...)
 		for j := 1; j < iter; j++ {
-			mac = hmac.New(sha256.New, password)
+			mac.Reset()
 			_, _ = mac.Write(u)
-			u = mac.Sum(nil)
+			u = mac.Sum(u[:0])
 			for k := range t {
 				t[k] ^= u[k]
 			}
@@ -240,58 +251,14 @@ func ValidatePassword(p string) error {
 	return nil
 }
 func (m *Manager) Login(username, pw, remote string) (Session, error) {
-	key := remote + "|" + strings.ToLower(username)
-	now := time.Now()
-
-	// PBKDF2 is intentionally expensive. Do not hold the manager-wide mutex while
-	// deriving the password key, otherwise one login attempt serializes unrelated
-	// session/token operations and creates an avoidable authentication DoS vector.
-	m.mu.Lock()
-	if f := m.failures[key]; now.Before(f.Until) {
-		m.mu.Unlock()
-		return Session{}, errors.New("login temporarily throttled")
-	}
-	u, ok := m.users[username]
-	storedHash := u.PasswordHash
-	disabled := u.Disabled
-	m.mu.Unlock()
-
-	valid := ok && !disabled && verify(storedHash, pw)
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	// Re-read the account after the expensive check so a concurrent password
-	// reset, disable, role change, or tenant change takes effect immediately.
-	current, stillExists := m.users[username]
-	if !valid || !stillExists || current.Disabled || current.PasswordHash != storedHash {
-		f := m.failures[key]
-		f.Count++
-		delay := time.Duration(f.Count*f.Count) * time.Second
-		if delay > 60*time.Second {
-			delay = 60 * time.Second
-		}
-		f.Until = time.Now().Add(delay)
-		m.failures[key] = f
-		return Session{}, errors.New("invalid credentials")
-	}
-	delete(m.failures, key)
-	sid, err := token(32)
-	if err != nil {
-		return Session{}, err
-	}
-	csrf, err := token(24)
-	if err != nil {
-		return Session{}, err
-	}
-	s := Session{ID: sid, Username: current.Username, Role: normalizeRole(current.Role), CSRF: csrf, Expires: time.Now().Add(m.ttl), AuthType: "session"}
-	m.sessions[sid] = s
-	return s, nil
+	return m.LoginWithMFA(username, pw, "", remote)
 }
 func (m *Manager) Session(id string) (Session, bool) {
 	m.mu.RLock()
 	s, ok := m.sessions[id]
+	u, exists := m.users[s.Username]
 	m.mu.RUnlock()
-	if !ok || time.Now().After(s.Expires) {
+	if !ok || !exists || u.Disabled || !validRole(u.Role) || !time.Now().Before(s.Expires) {
 		if ok {
 			m.mu.Lock()
 			delete(m.sessions, id)
@@ -299,10 +266,18 @@ func (m *Manager) Session(id string) (Session, bool) {
 		}
 		return Session{}, false
 	}
+	s.Role = normalizeRole(u.Role)
 	return s, true
 }
 func (m *Manager) Logout(id string) { m.mu.Lock(); delete(m.sessions, id); m.mu.Unlock() }
 func (m *Manager) ChangePassword(username, old, new string) error {
+	if old == "" {
+		return errors.New("current password is required")
+	}
+	return m.changePassword(username, old, new)
+}
+
+func (m *Manager) changePassword(username, old, new string) error {
 	if e := ValidatePassword(new); e != nil {
 		return e
 	}
@@ -336,14 +311,16 @@ func (m *Manager) ChangePassword(username, old, new string) error {
 	}
 	u.PasswordHash = h
 	u.MustChange = false
+	previous := m.users[username]
 	m.users[username] = u
+	if e = m.saveLocked(); e != nil {
+		m.users[username] = previous
+		return e
+	}
 	for id, s := range m.sessions {
 		if s.Username == username {
 			delete(m.sessions, id)
 		}
-	}
-	if e = m.saveLocked(); e != nil {
-		return e
 	}
 	if m.bootstrap != "" {
 		_ = os.Remove(m.bootstrap)
@@ -351,7 +328,7 @@ func (m *Manager) ChangePassword(username, old, new string) error {
 	return nil
 }
 func (m *Manager) ResetPassword(username, new string) error {
-	return m.ChangePassword(username, "", new)
+	return m.changePassword(username, "", new)
 }
 func (m *Manager) Users() []User {
 	m.mu.RLock()
@@ -405,7 +382,11 @@ func (m *Manager) AddUserTenant(username, password, role, _ string) error {
 		return errors.New("user exists")
 	}
 	m.users[username] = User{Username: username, PasswordHash: h, Role: role, MustChange: true, AuthSource: "local"}
-	return m.saveLocked()
+	if err := m.saveLocked(); err != nil {
+		delete(m.users, username)
+		return err
+	}
+	return nil
 }
 func (m *Manager) User(username string) (User, bool) {
 	m.mu.RLock()
@@ -653,7 +634,12 @@ func (m *Manager) RevokeAPIToken(owner, id string) error {
 	}
 	delete(m.tokens, id)
 	delete(m.tokenByHash, t.Hash)
-	return m.saveTokensLocked()
+	if err := m.saveTokensLocked(); err != nil {
+		m.tokens[id] = t
+		m.tokenByHash[t.Hash] = id
+		return err
+	}
+	return nil
 }
 
 func (m *Manager) AuthenticateBearer(secret string) (Session, bool) {
@@ -734,9 +720,10 @@ func (m *Manager) CreateExternalSessionScoped(username, role, _tenant, source st
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	u, ok := m.users[username]
-	if ok && u.AuthSource == "local" {
-		return Session{}, errors.New("external identity conflicts with a local account")
+	if ok && u.AuthSource != source {
+		return Session{}, errors.New("external identity conflicts with an account from another authentication source")
 	}
+	previous := u
 	if !ok {
 		u = User{Username: username, Role: role, MustChange: false, AuthSource: source}
 	} else {
@@ -750,6 +737,11 @@ func (m *Manager) CreateExternalSessionScoped(username, role, _tenant, source st
 	u.Tenant = ""
 	m.users[username] = u
 	if err := m.saveLocked(); err != nil {
+		if ok {
+			m.users[username] = previous
+		} else {
+			delete(m.users, username)
+		}
 		return Session{}, err
 	}
 	return m.newSessionLocked(u, source)

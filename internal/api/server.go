@@ -1,6 +1,7 @@
 package api
 
 import (
+	"central-flow-collector/internal/accesspolicy"
 	"central-flow-collector/internal/adminops"
 	"central-flow-collector/internal/analytics"
 	"central-flow-collector/internal/audit"
@@ -19,6 +20,7 @@ import (
 	"central-flow-collector/internal/storage"
 	"central-flow-collector/internal/workspace"
 	"context"
+	"crypto/hmac"
 	"embed"
 	"encoding/csv"
 	"encoding/json"
@@ -30,6 +32,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/pprof"
+	"net/url"
 	"runtime"
 	"sort"
 	"strconv"
@@ -63,6 +66,7 @@ type Server struct {
 	RequireMFA            bool
 	DiagnosticsEnabled    bool
 	ClusterRequireMTLS    bool
+	AccessPolicy          *accesspolicy.Manager
 	mux                   *http.ServeMux
 	intelligenceState     intelligenceState
 }
@@ -71,6 +75,7 @@ type userView struct {
 	Role       string `json:"role"`
 	MustChange bool   `json:"must_change"`
 	Disabled   bool   `json:"disabled"`
+	AuthSource string `json:"auth_source"`
 }
 
 // v4 represents one organization per deployment. These helpers remain only as
@@ -81,17 +86,26 @@ func New(a *auth.Manager, p *policy.Engine, c *collector.Collector, s storage.Ba
 	x.routes()
 	return x
 }
-func (s *Server) Handler() http.Handler           { return s.securityHeaders(s.mux) }
-func (s *Server) SetOIDC(m *oidc.Manager)         { s.OIDC = m }
-func (s *Server) SetCluster(r *cluster.Registry)  { s.Cluster = r }
-func (s *Server) SetLDAP(m *ldapauth.Manager)     { s.LDAP = m }
-func (s *Server) SetReports(m *reporting.Manager) { s.Reports = m }
-func (s *Server) SetAdminOps(m *adminops.Manager) { s.AdminOps = m }
-func (s *Server) SetRestart(fn func())            { s.Restart = fn }
-func (s *Server) SetNodeInfo(id, region string)   { s.NodeID = id; s.NodeRegion = region }
-func (s *Server) SetRequireMFA(v bool)            { s.RequireMFA = v }
-func (s *Server) SetDiagnosticsEnabled(v bool)    { s.DiagnosticsEnabled = v }
-func (s *Server) SetClusterRequireMTLS(v bool)    { s.ClusterRequireMTLS = v }
+func (s *Server) Handler() http.Handler {
+	return s.securityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if s.AccessPolicy != nil && r.URL.Path != "/health" && r.URL.Path != "/ready" && r.URL.Path != "/metrics" && !s.AccessPolicy.Allowed(remoteIP(r)) {
+			writeErr(w, http.StatusForbidden, "management access denied by IP policy")
+			return
+		}
+		s.mux.ServeHTTP(w, r)
+	}))
+}
+func (s *Server) SetAccessPolicy(p *accesspolicy.Manager) { s.AccessPolicy = p }
+func (s *Server) SetOIDC(m *oidc.Manager)                 { s.OIDC = m }
+func (s *Server) SetCluster(r *cluster.Registry)          { s.Cluster = r }
+func (s *Server) SetLDAP(m *ldapauth.Manager)             { s.LDAP = m }
+func (s *Server) SetReports(m *reporting.Manager)         { s.Reports = m }
+func (s *Server) SetAdminOps(m *adminops.Manager)         { s.AdminOps = m }
+func (s *Server) SetRestart(fn func())                    { s.Restart = fn }
+func (s *Server) SetNodeInfo(id, region string)           { s.NodeID = id; s.NodeRegion = region }
+func (s *Server) SetRequireMFA(v bool)                    { s.RequireMFA = v }
+func (s *Server) SetDiagnosticsEnabled(v bool)            { s.DiagnosticsEnabled = v }
+func (s *Server) SetClusterRequireMTLS(v bool)            { s.ClusterRequireMTLS = v }
 func (s *Server) routes() {
 	s.notificationRoutes()
 	s.engineeringRoutes()
@@ -188,6 +202,8 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/v1/cluster/rollouts/{id}/advance", s.withAuth("cluster.manage", s.clusterRolloutAdvance))
 	s.mux.HandleFunc("GET /api/v1/admin/overview", s.withAuth("settings", s.adminOverview))
 	s.mux.HandleFunc("GET /api/v1/admin/settings", s.withAuth("settings", s.adminSettings))
+	s.mux.HandleFunc("GET /api/v1/admin/access-policy", s.withAuth("settings", s.accessPolicyGet))
+	s.mux.HandleFunc("POST /api/v1/admin/access-policy", s.withAuth("settings", s.accessPolicyApply))
 	s.mux.HandleFunc("POST /api/v1/admin/settings/validate", s.withAuth("settings", s.adminSettingsValidate))
 	s.mux.HandleFunc("POST /api/v1/admin/settings/apply", s.withAuth("settings", s.adminSettingsApply))
 	s.mux.HandleFunc("GET /api/v1/admin/config/versions", s.withAuth("settings", s.adminConfigVersions))
@@ -228,6 +244,12 @@ func (s *Server) oidcStart(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 500, "unable to start OIDC login")
 		return
 	}
+	authorizationURL, err := url.Parse(u)
+	if err != nil {
+		writeErr(w, 500, "invalid OIDC authorization URL")
+		return
+	}
+	http.SetCookie(w, &http.Cookie{Name: "fc_oidc_state", Value: authorizationURL.Query().Get("state"), Path: "/api/v1/auth/oidc/callback", HttpOnly: true, Secure: r.TLS != nil, SameSite: http.SameSiteLaxMode, MaxAge: 600})
 	http.Redirect(w, r, u, http.StatusFound)
 }
 func (s *Server) oidcCallback(w http.ResponseWriter, r *http.Request) {
@@ -235,6 +257,13 @@ func (s *Server) oidcCallback(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 404, "OIDC is not configured")
 		return
 	}
+	state := r.URL.Query().Get("state")
+	cookie, err := r.Cookie("fc_oidc_state")
+	if err != nil || state == "" || !hmac.Equal([]byte(cookie.Value), []byte(state)) {
+		writeErr(w, 401, "OIDC browser state mismatch")
+		return
+	}
+	http.SetCookie(w, &http.Cookie{Name: "fc_oidc_state", Path: "/api/v1/auth/oidc/callback", HttpOnly: true, Secure: r.TLS != nil, SameSite: http.SameSiteLaxMode, MaxAge: -1})
 	if e := r.URL.Query().Get("error"); e != "" {
 		writeErr(w, 401, "OIDC provider rejected login")
 		return
@@ -279,11 +308,11 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 	u, _ := s.Auth.User(in.Username)
 	http.SetCookie(w, &http.Cookie{Name: "fc_session", Value: sess.ID, Path: "/", HttpOnly: true, Secure: r.TLS != nil, SameSite: http.SameSiteStrictMode, Expires: sess.Expires})
 	s.Audit.Write(audit.Event{User: u.Username, Action: "login", Source: remote, Success: true})
-	writeJSON(w, 200, map[string]any{"csrf": sess.CSRF, "user": view(u)})
+	s.me(w, r, sess)
 }
 func (s *Server) me(w http.ResponseWriter, r *http.Request, ss auth.Session) {
 	u, _ := s.Auth.User(ss.Username)
-	writeJSON(w, 200, map[string]any{"csrf": ss.CSRF, "user": view(u), "version": buildinfo.Version})
+	writeJSON(w, 200, map[string]any{"csrf": ss.CSRF, "user": view(u), "version": buildinfo.Version, "mfa_enrollment_required": s.RequireMFA && ss.AuthType == "session"})
 }
 func (s *Server) permissions(w http.ResponseWriter, r *http.Request, ss auth.Session) {
 	writeJSON(w, 200, map[string]any{"role": ss.Role, "permissions": auth.Permissions(ss.Role), "token_scopes": ss.Scopes})
@@ -1273,6 +1302,13 @@ func (s *Server) withAuth(perm string, next authed) http.HandlerFunc {
 			writeErr(w, 403, "api token scope denied")
 			return
 		}
+		if !bearer {
+			u, _ := s.Auth.User(ss.Username)
+			if u.MustChange && r.URL.Path != "/api/v1/auth/me" && r.URL.Path != "/api/v1/auth/change-password" && r.URL.Path != "/api/v1/auth/logout" {
+				writeJSON(w, 403, map[string]any{"error": "password change required", "password_change_required": true})
+				return
+			}
+		}
 		// Mandatory MFA applies to the built-in local password login. A password
 		// session is fully trusted only when TOTP/recovery verification occurred
 		// during that login (session+mfa) or the user authenticated with a passkey.
@@ -1330,6 +1366,9 @@ func (s *Server) pprofTrace(w http.ResponseWriter, r *http.Request, ss auth.Sess
 func (s *Server) securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			w.Header().Set("Cache-Control", "no-store")
+		}
 		w.Header().Set("X-Frame-Options", "DENY")
 		w.Header().Set("Referrer-Policy", "no-referrer")
 		w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()")
@@ -1392,7 +1431,7 @@ func remoteIP(r *http.Request) string {
 	return r.RemoteAddr
 }
 func view(u auth.User) userView {
-	return userView{Username: u.Username, Role: u.Role, MustChange: u.MustChange, Disabled: u.Disabled}
+	return userView{Username: u.Username, Role: u.Role, MustChange: u.MustChange, Disabled: u.Disabled, AuthSource: u.AuthSource}
 }
 
 var _ = log.Printf

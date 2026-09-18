@@ -1,13 +1,46 @@
 package api
 
 import (
+	"central-flow-collector/internal/accesspolicy"
 	"io/fs"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 	"testing/fstest"
 )
+
+func TestHandlerEnforcesManagementAccessPolicy(t *testing.T) {
+	p, err := accesspolicy.New(filepath.Join(t.TempDir(), "access-policy.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Replace(accesspolicy.Document{DefaultAction: "deny", Rules: []accesspolicy.Rule{{ID: "trusted", CIDR: "192.0.2.0/24", Action: "allow", Enabled: true}}}); err != nil {
+		t.Fatal(err)
+	}
+	s := &Server{mux: http.NewServeMux(), AccessPolicy: p}
+	s.mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) })
+	deniedReq := httptest.NewRequest(http.MethodGet, "http://collector/", nil)
+	deniedReq.RemoteAddr = "198.51.100.10:1234"
+	denied := httptest.NewRecorder()
+	s.Handler().ServeHTTP(denied, deniedReq)
+	if denied.Code != http.StatusForbidden {
+		t.Fatalf("denied request status=%d", denied.Code)
+	}
+	allowedReq := httptest.NewRequest(http.MethodGet, "http://collector/", nil)
+	allowedReq.RemoteAddr = "192.0.2.10:1234"
+	allowed := httptest.NewRecorder()
+	s.Handler().ServeHTTP(allowed, allowedReq)
+	if allowed.Code != http.StatusNoContent {
+		t.Fatalf("allowed request status=%d", allowed.Code)
+	}
+	health := httptest.NewRecorder()
+	s.Handler().ServeHTTP(health, httptest.NewRequest(http.MethodGet, "http://collector/health", nil))
+	if health.Code == http.StatusForbidden {
+		t.Fatal("health endpoint should remain available for monitoring")
+	}
+}
 
 func TestSPAHandlerRootServesIndexWithoutRedirectLoop(t *testing.T) {
 	sub := fstest.MapFS{

@@ -156,7 +156,10 @@ func Default() Config {
 	c.Cluster.GlobalDedupTimeoutMS = 300
 	c.Cluster.GlobalDedupMaxEntries = 500000
 	c.Cluster.ExpectedNodes = 1
-	c.Web.Bind = "127.0.0.1"
+	// The portal is intended to be reachable from the management network by
+	// default. Access is constrained by the management IP policy and TLS can be
+	// enabled for untrusted networks.
+	c.Web.Bind = "0.0.0.0"
 	c.Web.Port = 8080
 	c.Web.TLS = false
 	c.Storage.Backend = "local"

@@ -7,10 +7,10 @@ import (
 	"testing"
 )
 
-func TestDefaultWebTransportIsCertificateFreeLoopbackHTTP(t *testing.T) {
+func TestDefaultWebTransportIsCertificateFreeAllInterfaceHTTP(t *testing.T) {
 	c := Default()
-	if c.Web.Bind != "127.0.0.1" {
-		t.Fatalf("default web bind = %q, want 127.0.0.1", c.Web.Bind)
+	if c.Web.Bind != "0.0.0.0" {
+		t.Fatalf("default web bind = %q, want 0.0.0.0", c.Web.Bind)
 	}
 	if c.Web.Port != 8080 {
 		t.Fatalf("default web port = %d, want 8080", c.Web.Port)

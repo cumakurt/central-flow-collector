@@ -28,6 +28,7 @@
         <form id="loginForm">
           <label>Username<input id="username" value="admin" autocomplete="username" placeholder="admin"></label>
           <label>Password<input id="password" type="password" autocomplete="current-password" placeholder="••••••••••••"></label>
+          <label>Authenticator or recovery code (if enabled)<input id="mfaCode" autocomplete="one-time-code" maxlength="128"></label>
           <button class="primary wide">Sign in</button>
           <div class="login-divider"><span>or</span></div>
           <div class="login-alt">
@@ -52,7 +53,7 @@
 
       <nav id="nav" aria-label="Primary navigation"></nav>
       <div class="sidebar-foot">
-        <div class="sidebar-account"><div class="user-chip"><span class="user-avatar">U</span><span id="userLabel"></span></div><button id="logoutBtn" class="ghost subtle">Logout</button></div>
+        <div class="sidebar-account"><div class="user-chip"><span class="user-avatar">U</span><span id="userLabel"></span></div><button class="ghost subtle" data-route="security">Account security</button><button id="logoutBtn" class="ghost subtle">Logout</button></div>
         <button type="button" class="product-credit" data-about aria-label="About Central Flow Collector, developer and license"><span aria-hidden="true">ⓘ</span><span>Cuma KURT · AGPL-3.0-only</span></button>
       </div>
     </aside>
@@ -97,6 +98,7 @@
   <script src="/services.js"></script>
   <script src="/traffic-visuals-state.js"></script>
   <script src="/traffic-visuals.js"></script>
+  <script src="/account.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

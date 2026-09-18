@@ -21,6 +21,7 @@ import (
 	"syscall"
 	"time"
 
+	"central-flow-collector/internal/accesspolicy"
 	"central-flow-collector/internal/adminops"
 	"central-flow-collector/internal/analytics"
 	"central-flow-collector/internal/api"
@@ -242,6 +243,8 @@ func run(args []string) int {
 	}
 	adminMgr, err := adminops.New(*cp, c)
 	fatalIf(err)
+	accessPolicy, err := accesspolicy.New(filepath.Join(c.Storage.DataDir, "access-policy.json"))
+	fatalIf(err)
 	var notificationPlatform *notification.Platform
 	var notificationErr error
 	// Scheduled reports must use the effective notification configuration, not
@@ -283,6 +286,7 @@ func run(args []string) int {
 	defer reports.Close()
 	fleetRestart := make(chan struct{}, 1)
 	srv := api.New(am, p, col, st, an, au, en, ws)
+	srv.SetAccessPolicy(accessPolicy)
 	routingProvider, routingErr := engineering.LoadRoutes(filepath.Join(c.Storage.DataDir, "routing-prefixes.json"))
 	if routingErr != nil {
 		log.Printf("routing context unavailable: %v", routingErr)

@@ -204,7 +204,11 @@ type Local struct {
 	q         chan model.Flow
 	stop      chan struct{}
 	done      chan struct{}
-	syncReq   chan chan struct{}
+	syncReq   chan chan error
+	writeMu   sync.RWMutex
+	closed    bool
+	errorMu   sync.RWMutex
+	lastErr   error
 	written   atomic.Uint64
 	dropped   atomic.Uint64
 	errors    atomic.Uint64
@@ -222,12 +226,17 @@ func NewLocal(dir string, queue, retention int) (*Local, error) {
 	if err := os.MkdirAll(filepath.Join(dir, "flows"), 0750); err != nil {
 		return nil, err
 	}
-	l := &Local{dir: dir, q: make(chan model.Flow, queue), stop: make(chan struct{}), done: make(chan struct{}), syncReq: make(chan chan struct{})}
+	l := &Local{dir: dir, q: make(chan model.Flow, queue), stop: make(chan struct{}), done: make(chan struct{}), syncReq: make(chan chan error)}
 	l.retention.Store(int64(retention))
 	go l.writer()
 	return l, nil
 }
 func (l *Local) Write(f model.Flow) error {
+	l.writeMu.RLock()
+	defer l.writeMu.RUnlock()
+	if l.closed {
+		return errors.New("local storage is closed")
+	}
 	select {
 	case l.q <- f:
 		return nil
@@ -236,6 +245,21 @@ func (l *Local) Write(f model.Flow) error {
 		return errors.New("storage queue full")
 	}
 }
+func (l *Local) storageError() error {
+	l.errorMu.RLock()
+	defer l.errorMu.RUnlock()
+	return l.lastErr
+}
+
+func (l *Local) setStorageError(err error) {
+	l.errorMu.Lock()
+	l.lastErr = err
+	l.errorMu.Unlock()
+	if err != nil {
+		l.errors.Add(1)
+	}
+}
+
 func (l *Local) writer() {
 	defer close(l.done)
 	tick := time.NewTicker(time.Second)
@@ -245,39 +269,51 @@ func (l *Local) writer() {
 	var file *os.File
 	var bw *bufio.Writer
 	var enc *json.Encoder
+	var pending uint64
 	day := ""
-	flush := func() {
-		if bw != nil {
-			_ = bw.Flush()
+	flush := func() error {
+		if bw == nil {
+			return l.storageError()
 		}
-		if file != nil {
-			_ = file.Sync()
+		err := bw.Flush()
+		if err == nil {
+			err = file.Sync()
 		}
+		if err != nil {
+			l.dropped.Add(pending)
+		} else if pending > 0 {
+			l.written.Add(pending)
+			l.setStorageError(nil)
+		}
+		pending = 0
+		if err != nil {
+			l.setStorageError(err)
+		}
+		return err
 	}
 	closeCurrent := func() {
-		flush()
+		_ = flush()
 		if file != nil {
-			_ = file.Close()
+			if err := file.Close(); err != nil {
+				l.setStorageError(err)
+			}
 		}
-		file = nil
-		bw = nil
-		enc = nil
+		file, bw, enc = nil, nil, nil
 		day = ""
 	}
 	writeOne := func(f model.Flow) {
-		d := f.ReceiveTime.UTC().Format("2006-01-02")
 		if f.ReceiveTime.IsZero() {
-			d = time.Now().UTC().Format("2006-01-02")
+			f.ReceiveTime = time.Now().UTC()
 		}
+		d := f.ReceiveTime.UTC().Format("2006-01-02")
 		if d != day || bw == nil {
 			closeCurrent()
 			p := filepath.Join(l.dir, "flows", d+".jsonl")
 			var err error
 			file, err = os.OpenFile(p, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0640)
 			if err != nil {
-				l.errors.Add(1)
-				file = nil
-				bw = nil
+				l.setStorageError(err)
+				l.dropped.Add(1)
 				return
 			}
 			bw = bufio.NewWriterSize(file, 1<<20)
@@ -285,10 +321,12 @@ func (l *Local) writer() {
 			day = d
 		}
 		if err := enc.Encode(f); err != nil {
-			l.errors.Add(1)
+			l.setStorageError(err)
+			l.dropped.Add(1)
+			closeCurrent()
 			return
 		}
-		l.written.Add(1)
+		pending++
 	}
 	defer closeCurrent()
 	for {
@@ -296,21 +334,17 @@ func (l *Local) writer() {
 		case f := <-l.q:
 			writeOne(f)
 		case ack := <-l.syncReq:
-			// Drain everything that was already queued before taking the snapshot,
-			// then flush the buffered writer so immediate UI/API queries can see it.
-			draining := true
-			for draining {
-				select {
-				case f := <-l.q:
-					writeOne(f)
-				default:
-					draining = false
-				}
+			// Bound the barrier to the queue snapshot so continuous ingestion
+			// cannot starve a query or prevent cancellation from completing.
+			queued := len(l.q)
+			for i := 0; i < queued; i++ {
+				writeOne(<-l.q)
 			}
-			flush()
-			close(ack)
+			ack <- flush()
 		case <-tick.C:
-			flush()
+			if err := flush(); err != nil {
+				closeCurrent()
+			}
 		case <-purge.C:
 			l.purge()
 		case <-l.stop:
@@ -319,7 +353,6 @@ func (l *Local) writer() {
 				case f := <-l.q:
 					writeOne(f)
 				default:
-					flush()
 					return
 				}
 			}
@@ -328,7 +361,7 @@ func (l *Local) writer() {
 }
 
 func (l *Local) syncWrites(ctx context.Context) error {
-	ack := make(chan struct{})
+	ack := make(chan error, 1)
 	select {
 	case l.syncReq <- ack:
 	case <-l.done:
@@ -337,8 +370,8 @@ func (l *Local) syncWrites(ctx context.Context) error {
 		return ctx.Err()
 	}
 	select {
-	case <-ack:
-		return nil
+	case err := <-ack:
+		return err
 	case <-l.done:
 		return errors.New("local storage is closed")
 	case <-ctx.Done():
@@ -347,14 +380,14 @@ func (l *Local) syncWrites(ctx context.Context) error {
 }
 
 func (l *Local) Close() error {
-	select {
-	case <-l.done:
-		return nil
-	default:
+	l.writeMu.Lock()
+	if !l.closed {
+		l.closed = true
 		close(l.stop)
-		<-l.done
-		return nil
 	}
+	l.writeMu.Unlock()
+	<-l.done
+	return l.storageError()
 }
 func (l *Local) Query(ctx context.Context, q Query) ([]model.Flow, error) {
 	if err := l.syncWrites(ctx); err != nil {
@@ -397,8 +430,13 @@ func (l *Local) Query(ctx context.Context, q Query) ([]model.Flow, error) {
 		sc := bufio.NewScanner(f)
 		buf := make([]byte, 64*1024)
 		sc.Buffer(buf, 2*1024*1024)
-		var day []model.Flow
+		day := make([]model.Flow, 0, q.Limit-len(out))
+		next := 0
 		for sc.Scan() {
+			if err := ctx.Err(); err != nil {
+				_ = f.Close()
+				return out, err
+			}
 			var x model.Flow
 			if json.Unmarshal(sc.Bytes(), &x) != nil {
 				continue
@@ -406,14 +444,19 @@ func (l *Local) Query(ctx context.Context, q Query) ([]model.Flow, error) {
 			if !match(x, q) {
 				continue
 			}
-			day = append(day, x)
+			if len(day) < cap(day) {
+				day = append(day, x)
+			} else {
+				day[next] = x
+			}
+			next = (next + 1) % cap(day)
 		}
 		_ = f.Close()
 		if e := sc.Err(); e != nil {
 			return out, e
 		}
 		for i := len(day) - 1; i >= 0 && len(out) < q.Limit; i-- {
-			out = append(out, day[i])
+			out = append(out, day[(next+i)%len(day)])
 		}
 		if len(out) >= q.Limit {
 			break
@@ -603,7 +646,7 @@ func (l *Local) Purge(ctx context.Context) (PurgeResult, error) {
 	return r, nil
 }
 func (l *Local) Stats() Stats {
-	return Stats{Backend: "local", Healthy: true, Written: l.written.Load(), Dropped: l.dropped.Load(), WriteErrors: l.errors.Load(), QueueDepth: len(l.q), QueueCapacity: cap(l.q), BytesOnDisk: dirSize(filepath.Join(l.dir, "flows"))}
+	return Stats{Backend: "local", Healthy: l.storageError() == nil, Written: l.written.Load(), Dropped: l.dropped.Load(), WriteErrors: l.errors.Load(), QueueDepth: len(l.q), QueueCapacity: cap(l.q), BytesOnDisk: dirSize(filepath.Join(l.dir, "flows"))}
 }
 func dirSize(dir string) int64 {
 	var n int64

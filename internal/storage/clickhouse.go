@@ -36,6 +36,8 @@ type ClickHouseConfig struct {
 }
 
 type ClickHouse struct {
+	writeMu          sync.RWMutex
+	closed           bool
 	cfg              ClickHouseConfig
 	localTable       string
 	client           *http.Client
@@ -312,6 +314,11 @@ func (c *ClickHouse) Purge(ctx context.Context) (PurgeResult, error) {
 }
 
 func (c *ClickHouse) Write(f model.Flow) error {
+	c.writeMu.RLock()
+	defer c.writeMu.RUnlock()
+	if c.closed {
+		return errors.New("clickhouse storage is closed")
+	}
 	select {
 	case c.q <- f:
 		return nil
@@ -477,14 +484,14 @@ func (c *ClickHouse) flush(batch []model.Flow) {
 }
 
 func (c *ClickHouse) Close() error {
-	select {
-	case <-c.done:
-		return nil
-	default:
+	c.writeMu.Lock()
+	if !c.closed {
+		c.closed = true
 		close(c.stop)
-		<-c.done
-		return nil
 	}
+	c.writeMu.Unlock()
+	<-c.done
+	return nil
 }
 func (c *ClickHouse) setError(err error) {
 	c.lastErrMu.Lock()

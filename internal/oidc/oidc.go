@@ -27,8 +27,9 @@ type discovery struct {
 	JWKSURI               string `json:"jwks_uri"`
 }
 type pending struct {
-	Nonce   string
-	Expires time.Time
+	Nonce    string
+	Verifier string
+	Expires  time.Time
 }
 type Identity struct {
 	Subject  string   `json:"sub"`
@@ -65,6 +66,7 @@ type jwks struct {
 type claims struct {
 	Iss               string   `json:"iss"`
 	Aud               any      `json:"aud"`
+	AZP               string   `json:"azp"`
 	Exp               int64    `json:"exp"`
 	Iat               int64    `json:"iat"`
 	Nonce             string   `json:"nonce"`
@@ -124,13 +126,21 @@ func (m *Manager) Start() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	verifier, err := random(32)
+	if err != nil {
+		return "", err
+	}
 	m.mu.Lock()
 	for k, v := range m.states {
 		if time.Now().After(v.Expires) {
 			delete(m.states, k)
 		}
 	}
-	m.states[state] = pending{Nonce: nonce, Expires: time.Now().Add(10 * time.Minute)}
+	if len(m.states) >= 4096 {
+		m.mu.Unlock()
+		return "", errors.New("too many pending OIDC logins")
+	}
+	m.states[state] = pending{Nonce: nonce, Verifier: verifier, Expires: time.Now().Add(10 * time.Minute)}
 	m.mu.Unlock()
 	u, err := url.Parse(m.disc.AuthorizationEndpoint)
 	if err != nil {
@@ -143,6 +153,9 @@ func (m *Manager) Start() (string, error) {
 	q.Set("scope", "openid profile email")
 	q.Set("state", state)
 	q.Set("nonce", nonce)
+	challenge := sha256.Sum256([]byte(verifier))
+	q.Set("code_challenge", base64.RawURLEncoding.EncodeToString(challenge[:]))
+	q.Set("code_challenge_method", "S256")
 	u.RawQuery = q.Encode()
 	return u.String(), nil
 }
@@ -158,6 +171,7 @@ func (m *Manager) Callback(ctx context.Context, state, code string) (Identity, e
 		return Identity{}, errors.New("missing oidc code")
 	}
 	form := url.Values{"grant_type": {"authorization_code"}, "code": {code}, "redirect_uri": {m.cfg.RedirectURL}, "client_id": {m.cfg.ClientID}}
+	form.Set("code_verifier", p.Verifier)
 	if m.cfg.ClientSecret != "" {
 		form.Set("client_secret", m.cfg.ClientSecret)
 	}
@@ -284,6 +298,12 @@ func (m *Manager) verifyIDToken(ctx context.Context, tok, nonce string) (claims,
 	}
 	if !audContains(c.Aud, m.cfg.ClientID) {
 		return claims{}, errors.New("oidc audience mismatch")
+	}
+	if c.Sub == "" || (c.AZP != "" && c.AZP != m.cfg.ClientID) {
+		return claims{}, errors.New("oidc subject or authorized party is invalid")
+	}
+	if audiences, ok := c.Aud.([]any); ok && len(audiences) > 1 && c.AZP != m.cfg.ClientID {
+		return claims{}, errors.New("oidc multiple audiences require authorized party")
 	}
 	if c.Exp == 0 || now >= c.Exp {
 		return claims{}, errors.New("oidc id_token expired")

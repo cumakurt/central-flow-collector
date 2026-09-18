@@ -1,0 +1,43 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-09-18T06:45:27Z",
+    "authors": [
+      {
+        "name": "Cuma KURT",
+        "email": "cumakurt@gmail.com"
+      }
+    ],
+    "component": {
+      "type": "application",
+      "name": "central-flow-collector",
+      "version": "4.0.0",
+      "licenses": [
+        {
+          "license": {
+            "id": "AGPL-3.0-only"
+          }
+        }
+      ],
+      "externalReferences": [
+        {
+          "type": "vcs",
+          "url": "https://github.com/cumakurt/central-flow-collector"
+        }
+      ]
+    }
+  },
+  "components": [],
+  "properties": [
+    {
+      "name": "go.module",
+      "value": "central-flow-collector"
+    },
+    {
+      "name": "third_party_go_modules",
+      "value": "0"
+    }
+  ]
+}

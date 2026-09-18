@@ -1,6 +1,7 @@
 package api
 
 import (
+	"central-flow-collector/internal/accesspolicy"
 	"central-flow-collector/internal/adminops"
 	"central-flow-collector/internal/audit"
 	"central-flow-collector/internal/auth"
@@ -19,6 +20,33 @@ import (
 	"strings"
 	"time"
 )
+
+func (s *Server) accessPolicyGet(w http.ResponseWriter, r *http.Request, ss auth.Session) {
+	if s.AccessPolicy == nil {
+		writeErr(w, 503, "access policy is unavailable")
+		return
+	}
+	writeJSON(w, http.StatusOK, s.AccessPolicy.Snapshot())
+}
+
+func (s *Server) accessPolicyApply(w http.ResponseWriter, r *http.Request, ss auth.Session) {
+	if s.AccessPolicy == nil {
+		writeErr(w, 503, "access policy is unavailable")
+		return
+	}
+	var in accesspolicy.Document
+	if !decode(w, r, &in) {
+		return
+	}
+	if err := s.AccessPolicy.Replace(in); err != nil {
+		writeErr(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if s.Audit != nil {
+		s.Audit.Write(audit.Event{User: ss.Username, Action: "access_policy_update", Source: remoteIP(r), Success: true})
+	}
+	writeJSON(w, http.StatusOK, s.AccessPolicy.Snapshot())
+}
 
 type adminApplyRequest struct {
 	Settings adminops.Settings `json:"settings"`

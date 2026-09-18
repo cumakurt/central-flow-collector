@@ -139,37 +139,41 @@ func (c *ClickHouse) spoolBatch(batch []model.Flow) error {
 		segMax = 64 << 20
 	}
 	segments := [][]byte{}
-	start := 0
-	for start < len(batch) {
-		// grow a segment until the next record would exceed the configured segment size.
-		end := start + 1
-		best, err := encodeWALSegment(batch[start:end])
+	var segment bytes.Buffer
+	segment.Write(walMagic)
+	var hdr [walRecordOverhead]byte
+	for _, flow := range batch {
+		record, err := json.Marshal(flow)
 		if err != nil {
 			return err
 		}
-		for end < len(batch) {
-			candidate, er := encodeWALSegment(batch[start : end+1])
-			if er != nil {
-				return er
-			}
-			if int64(len(candidate)) > segMax {
-				break
-			}
-			best = candidate
-			end++
+		if len(record) == 0 || len(record) > 4<<20 {
+			return fmt.Errorf("WAL record size %d out of bounds", len(record))
 		}
-		if int64(len(best)) > segMax && end == start+1 {
+		size := walRecordOverhead + len(record)
+		if int64(len(walMagic)+size) > segMax {
 			return fmt.Errorf("single WAL record exceeds segment size")
 		}
-		segments = append(segments, best)
-		start = end
+		if int64(segment.Len()+size) > segMax {
+			segments = append(segments, segment.Bytes())
+			segment = bytes.Buffer{}
+			segment.Write(walMagic)
+		}
+		binary.BigEndian.PutUint32(hdr[:4], uint32(len(record)))
+		binary.BigEndian.PutUint32(hdr[4:], crc32.ChecksumIEEE(record))
+		segment.Write(hdr[:])
+		segment.Write(record)
 	}
+	segments = append(segments, segment.Bytes())
 	var newBytes int64
 	for _, x := range segments {
 		newBytes += int64(len(x))
 	}
 	if c.cfg.SpoolMaxBytes > 0 {
-		_, used, _ := c.spoolUsage()
+		_, used, err := c.spoolUsage()
+		if err != nil {
+			return fmt.Errorf("read spool usage: %w", err)
+		}
 		if used+newBytes > c.cfg.SpoolMaxBytes {
 			return fmt.Errorf("clickhouse spool quota exceeded: used=%d new=%d max=%d", used, newBytes, c.cfg.SpoolMaxBytes)
 		}

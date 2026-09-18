@@ -4,7 +4,9 @@ node:
   region: "default"
 
 web:
-  bind: "127.0.0.1"
+  # Listen on all interfaces by default. Restrict management traffic from the
+  # Admin Settings access policy and enable TLS for untrusted networks.
+  bind: "0.0.0.0"
   port: 8080
   tls: false
   cert_file: ""

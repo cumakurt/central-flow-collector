@@ -129,7 +129,29 @@ mkdir -p .local-data/enrichment
 ./dist/flowcollector-linux-amd64 run --config ./config.local.yaml
 ```
 
-`http://127.0.0.1:8080` adresini açın. İlk çalıştırmada bootstrap yönetici bilgisi `security.bootstrap_file` konumuna yazılır. Giriş yapıp normal kullanıcı bilgisini oluşturun veya güncelleyin ve bootstrap dosyasını silin.
+Kurulum ve varsayılan yapılandırma yönetim panelini `0.0.0.0` üzerinde dinler. Kurulum özeti, makinenin yönlendirme tablosundan otomatik tespit edilen birincil WAN adresini gösterir; paneli bu adresin `8080` portundan açın. İlk çalıştırmada bootstrap yönetici bilgisi `security.bootstrap_file` konumuna yazılır. Giriş yaptıktan sonra geçici parolayı değiştirin ve bootstrap dosyasını silin.
+
+Yönetim paneli erişimi **System → Admin Settings → Management access policy** bölümünden IP ve CIDR bazında sınırlandırılabilir. Kurallar sırayla değerlendirilir ve `allow` veya `deny` eylemleri ile açık bir varsayılan eylem desteklenir. Politika veri dizinindeki `access-policy.json` dosyasına atomik olarak yazılır ve panel/API isteklerine uygulanır; health, ready ve metrics uçları izleme için açık kalır.
+
+### Panel önizlemesi
+
+Aşağıdaki görseller, sahte NetFlow trafiği üretilmiş yerel bir örnek üzerinde alınmıştır. Genel görünüm, akış gezgini ve yönetim erişim politikası ekranlarını gösterir.
+
+![Ağ genel görünümü](docs/screenshots/overview.png)
+
+![Akış gezgini](docs/screenshots/flow-explorer.png)
+
+![Yönetim erişim politikası](docs/screenshots/system-access-policy.png)
+
+Aynı sahte trafik çalışmasından alınan diğer yetenek ekranları:
+
+![Analitik](docs/screenshots/analytics.png)
+![Trafik](docs/screenshots/traffic.png)
+![Trafik matrisi](docs/screenshots/traffic-matrix.png)
+![Exporter sağlığı](docs/screenshots/exporters.png)
+![Zamanlanmış raporlar](docs/screenshots/reports.png)
+![Bildirimler](docs/screenshots/notifications.png)
+![Sistem sağlığı](docs/screenshots/system.png)
 
 Örnek NetFlow v5 trafiği gönderin:
 
@@ -259,7 +281,7 @@ flowcollector config validate --config /etc/flowcollector/config.yaml
 | Bölüm | Amaç | Temel varsayılanlar |
 | --- | --- | --- |
 | `node` | Node kimliği ve bölgesi | boş/üretilen ID, `default` |
-| `web` | Portal/API bind ve TLS | `127.0.0.1:8080`, TLS kapalı |
+| `web` | Portal/API bind ve TLS | `0.0.0.0:8080`, TLS kapalı |
 | `storage` | Yerel veya ClickHouse kalıcılığı | yerel, 7 gün saklama |
 | `security` | Oturum, bootstrap, MFA ve sınırlar | varsayılan engelleme, 8 saat |
 | `oidc`, `ldap` | Harici kimlik sağlayıcıları | kapalı |
@@ -465,7 +487,7 @@ dist/                    hazır ikililer ve paketler
 
 ## Sorun giderme
 
-**Portal açılmıyor:** varsayılan bind `127.0.0.1` olduğu için yalnızca sunucudan erişilir. `web.bind`, servis durumu ve `flowcollector health` çıktısını kontrol edin. Loopback dışına açmadan önce TLS ve erişim kontrolü uygulayın.
+**Portal açılmıyor:** otomatik tespit edilen yönetim adresini, `web.bind`, güvenlik duvarı kurallarını, servis durumunu ve `flowcollector health` çıktısını kontrol edin. Varsayılan eylem deny ise kaydetmeden önce güvenilir yönetici CIDR'ını allow olarak ekleyin. Güvenilmeyen ağlarda loopback dışına açmadan önce TLS kullanın.
 
 **Servis grafikleri sıfır:** saklanan akışların kaynak/hedef portu içerdiğini doğrulayın. Yalnızca protokol kullanan görünümler ayrıca `ip_protocol` ister ve porttan tahmin yapmaz. Gönderici şablonlarını ve alan kapsamını kontrol edin.
 

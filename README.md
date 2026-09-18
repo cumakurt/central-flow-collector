@@ -129,7 +129,29 @@ mkdir -p .local-data/enrichment
 ./dist/flowcollector-linux-amd64 run --config ./config.local.yaml
 ```
 
-Open `http://127.0.0.1:8080`. On first start, the collector writes a bootstrap administrator credential to `security.bootstrap_file`. Sign in, create or update normal credentials, then remove the bootstrap file.
+The installer and default configuration bind the management portal to `0.0.0.0`. It prints the primary WAN address detected from the host routing table in the installation summary. Open that address on port `8080`. On first start, the collector writes a bootstrap administrator credential to `security.bootstrap_file`. Sign in, change the temporary password, and remove the bootstrap file.
+
+Management access can be restricted from **System → Admin Settings → Management access policy**. Rules accept IPv4/IPv6 addresses and CIDRs, are evaluated in order, and support `allow` or `deny` actions with an explicit default action. The policy is stored atomically in `access-policy.json` under the data directory and is enforced for the portal and API; health, readiness, and metrics remain available for monitoring.
+
+### Portal preview
+
+The screenshots below were captured from a local instance populated with generated NetFlow traffic. They cover the overview, flow explorer, and the management access policy screen.
+
+![Network overview](docs/screenshots/overview.png)
+
+![Flow explorer](docs/screenshots/flow-explorer.png)
+
+![Management access policy](docs/screenshots/system-access-policy.png)
+
+Additional capability screens captured from the same generated-traffic run:
+
+![Analytics](docs/screenshots/analytics.png)
+![Traffic](docs/screenshots/traffic.png)
+![Traffic matrix](docs/screenshots/traffic-matrix.png)
+![Exporter health](docs/screenshots/exporters.png)
+![Scheduled reports](docs/screenshots/reports.png)
+![Notifications](docs/screenshots/notifications.png)
+![System health](docs/screenshots/system.png)
 
 Send synthetic NetFlow v5 traffic:
 
@@ -264,7 +286,7 @@ flowcollector config validate --config /etc/flowcollector/config.yaml
 | Section | Purpose | Key defaults |
 | --- | --- | --- |
 | `node` | Node identity and region | generated/empty ID, region `default` |
-| `web` | Portal/API bind and TLS | `127.0.0.1:8080`, TLS off |
+| `web` | Portal/API bind and TLS | `0.0.0.0:8080`, TLS off |
 | `storage` | Local or ClickHouse persistence | local, 7-day retention |
 | `security` | Sessions, bootstrap, MFA policy, limits | default deny, 8-hour session |
 | `oidc`, `ldap` | External identity providers | disabled |
@@ -470,7 +492,7 @@ dist/                    prebuilt binaries and packages
 
 ## Troubleshooting
 
-**The portal does not open:** the default bind is `127.0.0.1`, so it is available only from the host. Check `web.bind`, service status, and `flowcollector health`. Apply TLS and access controls before using a non-loopback bind.
+**The portal does not open:** check the detected management address, `web.bind`, firewall rules, service status, and `flowcollector health`. If the management access policy has a deny default, add a trusted administrator CIDR before saving. Apply TLS before using a non-loopback bind on an untrusted network.
 
 **Service charts show zero:** confirm stored flows contain source/destination ports. Protocol-only views also require `ip_protocol`; they do not infer it from a port. Check exporter templates and field coverage.
 

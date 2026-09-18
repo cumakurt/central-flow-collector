@@ -37,17 +37,19 @@ type webauthnChallenge struct {
 }
 
 type WebAuthnCredentialCreation struct {
-	Challenge string `json:"challenge"`
-	RPID      string `json:"rp_id"`
-	RPName    string `json:"rp_name"`
-	UserID    string `json:"user_id"`
-	Username  string `json:"username"`
+	Challenge        string `json:"challenge"`
+	RPID             string `json:"rp_id"`
+	RPName           string `json:"rp_name"`
+	UserID           string `json:"user_id"`
+	Username         string `json:"username"`
+	UserVerification string `json:"user_verification"`
 }
 
 type WebAuthnAssertionOptions struct {
-	Challenge     string   `json:"challenge"`
-	RPID          string   `json:"rp_id"`
-	CredentialIDs []string `json:"credential_ids"`
+	Challenge        string   `json:"challenge"`
+	RPID             string   `json:"rp_id"`
+	CredentialIDs    []string `json:"credential_ids"`
+	UserVerification string   `json:"user_verification"`
 }
 
 type WebAuthnRegistrationResponse struct {
@@ -82,9 +84,14 @@ func (m *Manager) BeginTOTP(username string) (string, string, error) {
 	}
 	secret := base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(b)
 	m.mu.Lock()
-	if _, ok := m.users[username]; !ok {
+	u, ok := m.users[username]
+	if !ok {
 		m.mu.Unlock()
 		return "", "", errors.New("user not found")
+	}
+	if u.MFAEnabled {
+		m.mu.Unlock()
+		return "", "", errors.New("disable existing TOTP before enrolling a replacement")
 	}
 	m.pendingTOTP[username] = secret
 	m.mu.Unlock()
@@ -134,6 +141,10 @@ func (m *Manager) ConfirmTOTP(username, code string) ([]string, error) {
 	if !ok {
 		return nil, errors.New("user not found")
 	}
+	if u.MFAEnabled {
+		return nil, errors.New("TOTP is already enabled")
+	}
+	previous := u
 	codes := make([]string, 10)
 	hashes := make([]string, 10)
 	for i := range codes {
@@ -148,10 +159,11 @@ func (m *Manager) ConfirmTOTP(username, code string) ([]string, error) {
 	u.MFAEnabled = true
 	u.RecoveryHashes = hashes
 	m.users[username] = u
-	delete(m.pendingTOTP, username)
 	if err := m.saveLocked(); err != nil {
+		m.users[username] = previous
 		return nil, err
 	}
+	delete(m.pendingTOTP, username)
 	return codes, nil
 }
 
@@ -162,6 +174,10 @@ func (m *Manager) DisableTOTP(username, code string) error {
 	if !ok {
 		return errors.New("user not found")
 	}
+	previous := u
+	if !u.MFAEnabled {
+		return errors.New("TOTP is not enabled")
+	}
 	if !m.verifySecondFactorLocked(&u, code, time.Now()) {
 		return errors.New("invalid MFA code")
 	}
@@ -169,17 +185,21 @@ func (m *Manager) DisableTOTP(username, code string) error {
 	u.TOTPSecret = ""
 	u.RecoveryHashes = nil
 	m.users[username] = u
-	return m.saveLocked()
+	if err := m.saveLocked(); err != nil {
+		m.users[username] = previous
+		return err
+	}
+	return nil
 }
 
 func (m *Manager) verifySecondFactorLocked(u *User, code string, now time.Time) bool {
-	if verifyTOTP(u.TOTPSecret, code, now) {
+	if u.TOTPSecret != "" && verifyTOTP(u.TOTPSecret, code, now) {
 		return true
 	}
 	h := recoveryHash(code)
 	for i, x := range u.RecoveryHashes {
 		if hmac.Equal([]byte(x), []byte(h)) {
-			u.RecoveryHashes = append(u.RecoveryHashes[:i], u.RecoveryHashes[i+1:]...)
+			u.RecoveryHashes = append(append([]string(nil), u.RecoveryHashes[:i]...), u.RecoveryHashes[i+1:]...)
 			return true
 		}
 	}
@@ -187,6 +207,15 @@ func (m *Manager) verifySecondFactorLocked(u *User, code string, now time.Time) 
 }
 
 func (m *Manager) LoginWithMFA(username, pw, code, remote string) (Session, error) {
+	if len(username) > 256 || len(pw) > 4096 || len(code) > 128 || len(remote) > 256 {
+		return Session{}, errors.New("invalid credentials")
+	}
+	select {
+	case m.loginSlots <- struct{}{}:
+		defer func() { <-m.loginSlots }()
+	default:
+		return Session{}, errors.New("login temporarily throttled")
+	}
 	key := remote + "|" + strings.ToLower(username)
 	now := time.Now()
 
@@ -195,10 +224,18 @@ func (m *Manager) LoginWithMFA(username, pw, code, remote string) (Session, erro
 	// the account before creating a session. This keeps unrelated session/token
 	// operations responsive during login attempts.
 	m.mu.Lock()
-	if f := m.failures[key]; now.Before(f.Until) {
+	m.cleanupAuthLocked(now)
+	if f := m.failures[key]; now.Before(f.Until) || f.InFlight {
 		m.mu.Unlock()
 		return Session{}, errors.New("login temporarily throttled")
 	}
+	if _, exists := m.failures[key]; !exists && len(m.failures) >= 4096 {
+		m.mu.Unlock()
+		return Session{}, errors.New("login temporarily throttled")
+	}
+	f := m.failures[key]
+	f.InFlight = true
+	m.failures[key] = f
 	u, ok := m.users[username]
 	storedHash := u.PasswordHash
 	disabled := u.Disabled
@@ -208,10 +245,16 @@ func (m *Manager) LoginWithMFA(username, pw, code, remote string) (Session, erro
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	defer func() {
+		if f, exists := m.failures[key]; exists {
+			f.InFlight = false
+			m.failures[key] = f
+		}
+	}()
 	current, stillExists := m.users[username]
 	recordFailure := func() {
 		f := m.failures[key]
-		f.Count++
+		if f.Count < 8 { f.Count++ }
 		delay := time.Duration(f.Count*f.Count) * time.Second
 		if delay > 60*time.Second {
 			delay = 60 * time.Second
@@ -235,6 +278,7 @@ func (m *Manager) LoginWithMFA(username, pw, code, remote string) (Session, erro
 		}
 		m.users[username] = current
 		if err := m.saveLocked(); err != nil {
+			m.users[username] = u
 			return Session{}, err
 		}
 		authType = "session+mfa"
@@ -244,6 +288,10 @@ func (m *Manager) LoginWithMFA(username, pw, code, remote string) (Session, erro
 }
 
 func (m *Manager) newSessionLocked(u User, typ string) (Session, error) {
+	m.cleanupAuthLocked(time.Now())
+	if len(m.sessions) >= 10000 {
+		return Session{}, errors.New("session capacity reached")
+	}
 	sid, err := token(32)
 	if err != nil {
 		return Session{}, err
@@ -255,6 +303,23 @@ func (m *Manager) newSessionLocked(u User, typ string) (Session, error) {
 	s := Session{ID: sid, Username: u.Username, Role: u.Role, Tenant: u.Tenant, CSRF: csrf, Expires: time.Now().Add(m.ttl), AuthType: typ}
 	m.sessions[sid] = s
 	return s, nil
+}
+
+func (m *Manager) cleanupAuthLocked(now time.Time) {
+	if now.Sub(m.lastCleanup) < time.Minute { return }
+	m.lastCleanup = now
+	for key, f := range m.failures {
+		if !f.InFlight && !now.Before(f.Until) { delete(m.failures, key) }
+	}
+	for key, s := range m.sessions {
+		if !now.Before(s.Expires) { delete(m.sessions, key) }
+	}
+	for key, ch := range m.webauthnAuth {
+		if !now.Before(ch.Expires) { delete(m.webauthnAuth, key) }
+	}
+	for key, ch := range m.webauthnReg {
+		if !now.Before(ch.Expires) { delete(m.webauthnReg, key) }
+	}
 }
 
 func (m *Manager) BeginWebAuthnRegistration(username, rpID, origin string) (WebAuthnCredentialCreation, error) {
@@ -271,7 +336,7 @@ func (m *Manager) BeginWebAuthnRegistration(username, rpID, origin string) (WebA
 		return WebAuthnCredentialCreation{}, errors.New("user not found")
 	}
 	m.webauthnReg[username] = webauthnChallenge{Challenge: ch, Username: username, RPID: rpID, Origin: origin, Expires: time.Now().Add(5 * time.Minute)}
-	return WebAuthnCredentialCreation{Challenge: ch, RPID: rpID, RPName: "Central Flow Collector", UserID: base64.RawURLEncoding.EncodeToString([]byte(username)), Username: username}, nil
+	return WebAuthnCredentialCreation{Challenge: ch, RPID: rpID, RPName: "Central Flow Collector", UserID: base64.RawURLEncoding.EncodeToString([]byte(username)), Username: username, UserVerification: "required"}, nil
 }
 
 func (m *Manager) FinishWebAuthnRegistration(username string, resp WebAuthnRegistrationResponse) error {
@@ -329,7 +394,7 @@ func (m *Manager) BeginWebAuthnAssertion(username, rpID, origin string) (WebAuth
 	for _, pk := range u.Passkeys {
 		ids = append(ids, pk.ID)
 	}
-	return WebAuthnAssertionOptions{Challenge: ch, RPID: rpID, CredentialIDs: ids}, nil
+	return WebAuthnAssertionOptions{Challenge: ch, RPID: rpID, CredentialIDs: ids, UserVerification: "required"}, nil
 }
 
 func (m *Manager) FinishWebAuthnAssertion(username string, resp WebAuthnAssertionResponse) (Session, error) {
@@ -354,8 +419,8 @@ func (m *Manager) FinishWebAuthnAssertion(username string, resp WebAuthnAssertio
 	if !hmac.Equal(ad[:32], wantRP[:]) {
 		return Session{}, errors.New("WebAuthn rpIdHash mismatch")
 	}
-	if ad[32]&0x01 == 0 {
-		return Session{}, errors.New("WebAuthn user presence flag missing")
+	if ad[32]&0x05 != 0x05 {
+		return Session{}, errors.New("WebAuthn user presence or verification flag missing")
 	}
 	u, ok := m.users[username]
 	if !ok || u.Disabled {
@@ -390,30 +455,39 @@ func (m *Manager) FinishWebAuthnAssertion(username string, resp WebAuthnAssertio
 		return Session{}, errors.New("WebAuthn signature verification failed")
 	}
 	count := binary.BigEndian.Uint32(ad[33:37])
-	if pk.SignCount != 0 && count != 0 && count <= pk.SignCount {
+	if (pk.SignCount != 0 || count != 0) && count <= pk.SignCount {
 		return Session{}, errors.New("WebAuthn sign counter did not increase")
 	}
 	pk.SignCount = count
 	pk.LastUsed = time.Now().UTC()
+	u.Passkeys = append([]PasskeyCredential(nil), u.Passkeys...)
 	u.Passkeys[idx] = pk
+	previous := m.users[username]
 	m.users[username] = u
-	_ = m.saveLocked()
+	if err := m.saveLocked(); err != nil {
+		m.users[username] = previous
+		return Session{}, err
+	}
 	return m.newSessionLocked(u, "passkey")
 }
 
 func validRPOrigin(rpID, origin string) bool {
 	u, err := url.Parse(origin)
-	if err != nil || u.Hostname() == "" {
+	if err != nil || u.Hostname() == "" || rpID == "" || u.User != nil || u.Path != "" || u.RawQuery != "" || u.Fragment != "" {
 		return false
 	}
 	h := u.Hostname()
+	if u.Scheme != "https" && !(u.Scheme == "http" && h == "localhost") {
+		return false
+	}
 	return h == rpID || strings.HasSuffix(h, "."+rpID)
 }
 
 type clientData struct {
-	Type      string `json:"type"`
-	Challenge string `json:"challenge"`
-	Origin    string `json:"origin"`
+	Type        string `json:"type"`
+	Challenge   string `json:"challenge"`
+	Origin      string `json:"origin"`
+	CrossOrigin bool   `json:"crossOrigin"`
 }
 
 func decodeClientData(enc, typ, ch, origin string) (clientData, error) {
@@ -425,7 +499,7 @@ func decodeClientData(enc, typ, ch, origin string) (clientData, error) {
 	if json.Unmarshal(b, &c) != nil {
 		return c, errors.New("invalid clientDataJSON")
 	}
-	if c.Type != typ || c.Challenge != ch || c.Origin != origin {
+	if c.Type != typ || c.Challenge != ch || c.Origin != origin || c.CrossOrigin {
 		return c, errors.New("WebAuthn client data mismatch")
 	}
 	return c, nil
@@ -433,8 +507,9 @@ func decodeClientData(enc, typ, ch, origin string) (clientData, error) {
 
 // Minimal CBOR helpers sufficient for WebAuthn attestationObject and COSE EC2 keys.
 type cborDec struct {
-	b []byte
-	i int
+	b     []byte
+	i     int
+	depth int
 }
 
 func (d *cborDec) head() (major byte, n uint64, err error) {
@@ -472,6 +547,11 @@ func (d *cborDec) head() (major byte, n uint64, err error) {
 	return
 }
 func (d *cborDec) any() (any, error) {
+	if d.depth >= 32 {
+		return nil, errors.New("CBOR nesting limit exceeded")
+	}
+	d.depth++
+	defer func() { d.depth-- }()
 	m, n, e := d.head()
 	if e != nil {
 		return nil, e
@@ -482,20 +562,23 @@ func (d *cborDec) any() (any, error) {
 	case 1:
 		return -1 - int64(n), nil
 	case 2:
-		if d.i+int(n) > len(d.b) {
+		if n > uint64(len(d.b)-d.i) {
 			return nil, errors.New("CBOR bytes overflow")
 		}
 		x := append([]byte(nil), d.b[d.i:d.i+int(n)]...)
 		d.i += int(n)
 		return x, nil
 	case 3:
-		if d.i+int(n) > len(d.b) {
+		if n > uint64(len(d.b)-d.i) {
 			return nil, errors.New("CBOR text overflow")
 		}
 		x := string(d.b[d.i : d.i+int(n)])
 		d.i += int(n)
 		return x, nil
 	case 4:
+		if n > uint64(len(d.b)-d.i) {
+			return nil, errors.New("CBOR array length exceeds input")
+		}
 		a := make([]any, 0, n)
 		for j := uint64(0); j < n; j++ {
 			v, e := d.any()
@@ -506,11 +589,22 @@ func (d *cborDec) any() (any, error) {
 		}
 		return a, nil
 	case 5:
+		if n > uint64(len(d.b)-d.i)/2 {
+			return nil, errors.New("CBOR map length exceeds input")
+		}
 		mp := map[any]any{}
 		for j := uint64(0); j < n; j++ {
 			k, e := d.any()
 			if e != nil {
 				return nil, e
+			}
+			switch k.(type) {
+			case string, int64:
+			default:
+				return nil, errors.New("unsupported CBOR map key")
+			}
+			if _, exists := mp[k]; exists {
+				return nil, errors.New("duplicate CBOR map key")
 			}
 			v, e := d.any()
 			if e != nil {
@@ -528,6 +622,9 @@ func extractAttestationAuthData(b []byte) ([]byte, error) {
 	v, e := d.any()
 	if e != nil {
 		return nil, e
+	}
+	if d.i != len(b) {
+		return nil, errors.New("trailing attestation data")
 	}
 	mp, ok := v.(map[any]any)
 	if !ok {
@@ -547,8 +644,8 @@ func parseAttestedCredential(ad []byte, rpID string) (id, xs, ys string, count u
 	if !hmac.Equal(ad[:32], want[:]) {
 		return "", "", "", 0, errors.New("registration rpIdHash mismatch")
 	}
-	if ad[32]&0x41 != 0x41 {
-		return "", "", "", 0, errors.New("registration flags missing UP/AT")
+	if ad[32]&0x45 != 0x45 {
+		return "", "", "", 0, errors.New("registration flags missing UP/UV/AT")
 	}
 	count = binary.BigEndian.Uint32(ad[33:37])
 	pos := 53
@@ -568,6 +665,9 @@ func parseAttestedCredential(ad []byte, rpID string) (id, xs, ys string, count u
 	if !ok {
 		return "", "", "", 0, errors.New("COSE key invalid")
 	}
+	if mp[int64(1)] != int64(2) || mp[int64(3)] != int64(-7) || mp[int64(-1)] != int64(1) {
+		return "", "", "", 0, errors.New("only ES256 P-256 passkeys are supported")
+	}
 	get := func(k int64) []byte {
 		for kk, v := range mp {
 			if ki, ok := kk.(int64); ok && ki == k {
@@ -582,6 +682,9 @@ func parseAttestedCredential(ad []byte, rpID string) (id, xs, ys string, count u
 	y := get(-3)
 	if len(x) != 32 || len(y) != 32 {
 		return "", "", "", 0, errors.New("only ES256 P-256 passkeys are supported")
+	}
+	if !elliptic.P256().IsOnCurve(new(big.Int).SetBytes(x), new(big.Int).SetBytes(y)) {
+		return "", "", "", 0, errors.New("invalid P-256 public key")
 	}
 	return base64.RawURLEncoding.EncodeToString(cred), base64.RawURLEncoding.EncodeToString(x), base64.RawURLEncoding.EncodeToString(y), count, nil
 }
