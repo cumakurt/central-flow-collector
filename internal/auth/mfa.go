@@ -25,7 +25,6 @@ var ErrMFARequired = errors.New("multi-factor authentication required")
 type MFAStatus struct {
 	TOTPEnabled   bool `json:"totp_enabled"`
 	RecoveryCodes int  `json:"recovery_codes"`
-	Passkeys      int  `json:"passkeys"`
 }
 
 type webauthnChallenge struct {
@@ -74,7 +73,7 @@ func (m *Manager) MFAStatus(username string) MFAStatus {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	u := m.users[username]
-	return MFAStatus{TOTPEnabled: u.MFAEnabled, RecoveryCodes: len(u.RecoveryHashes), Passkeys: len(u.Passkeys)}
+	return MFAStatus{TOTPEnabled: u.MFAEnabled, RecoveryCodes: len(u.RecoveryHashes)}
 }
 
 func (m *Manager) BeginTOTP(username string) (string, string, error) {
@@ -254,7 +253,9 @@ func (m *Manager) LoginWithMFA(username, pw, code, remote string) (Session, erro
 	current, stillExists := m.users[username]
 	recordFailure := func() {
 		f := m.failures[key]
-		if f.Count < 8 { f.Count++ }
+		if f.Count < 8 {
+			f.Count++
+		}
 		delay := time.Duration(f.Count*f.Count) * time.Second
 		if delay > 60*time.Second {
 			delay = 60 * time.Second
@@ -306,19 +307,29 @@ func (m *Manager) newSessionLocked(u User, typ string) (Session, error) {
 }
 
 func (m *Manager) cleanupAuthLocked(now time.Time) {
-	if now.Sub(m.lastCleanup) < time.Minute { return }
+	if now.Sub(m.lastCleanup) < time.Minute {
+		return
+	}
 	m.lastCleanup = now
 	for key, f := range m.failures {
-		if !f.InFlight && !now.Before(f.Until) { delete(m.failures, key) }
+		if !f.InFlight && !now.Before(f.Until) {
+			delete(m.failures, key)
+		}
 	}
 	for key, s := range m.sessions {
-		if !now.Before(s.Expires) { delete(m.sessions, key) }
+		if !now.Before(s.Expires) {
+			delete(m.sessions, key)
+		}
 	}
 	for key, ch := range m.webauthnAuth {
-		if !now.Before(ch.Expires) { delete(m.webauthnAuth, key) }
+		if !now.Before(ch.Expires) {
+			delete(m.webauthnAuth, key)
+		}
 	}
 	for key, ch := range m.webauthnReg {
-		if !now.Before(ch.Expires) { delete(m.webauthnReg, key) }
+		if !now.Before(ch.Expires) {
+			delete(m.webauthnReg, key)
+		}
 	}
 }
 

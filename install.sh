@@ -21,7 +21,6 @@ BACKUP_ROOT="/var/backups/flowcollector"
 SNAPSHOT=""
 WEB_BIND="0.0.0.0"
 WEB_PORT="8080"
-WEB_BIND_SET=0
 WEB_PORT_SET=0
 FORCE_HTTP=0
 HTTPS_CERT=""
@@ -204,7 +203,7 @@ while (($#)); do
     --log-dir) LOG_DIR="$2"; shift 2;;
     --user) SERVICE_USER="$2"; shift 2;;
     --group) SERVICE_GROUP="$2"; shift 2;;
-    --web-bind) WEB_BIND="$2"; WEB_BIND_SET=1; shift 2;;
+    --web-bind) WEB_BIND="$2"; shift 2;;
     --web-port) WEB_PORT="$2"; WEB_PORT_SET=1; shift 2;;
     --http) FORCE_HTTP=1; shift;;
     --https-cert) HTTPS_CERT="$2"; shift 2;;
@@ -364,7 +363,7 @@ web_value(){
 
 set_web_value(){
   local key="$1" value="$2" file="$3"
-  sed -i "/^web:[[:space:]]*$/,/^[^[:space:]]/ s#^  ${key}:.*#  ${key}: ${value}#" "$file"
+  set_section_value web "$key" "$value" "$file"
 }
 
 section_value(){
@@ -547,6 +546,7 @@ rollback_snapshot(){
   [[ -f "$snap/flowgen" ]] && install -m 0755 -o root -g root "$snap/flowgen" "$PREFIX/flowgen"
   [[ -f "$snap/chbench" ]] && install -m 0755 -o root -g root "$snap/chbench" "$PREFIX/chbench"
   [[ -f "$snap/config.yaml" ]] && install -m 0640 -o root -g "$SERVICE_GROUP" "$snap/config.yaml" "$CONFIG_FILE"
+  [[ -f "$snap/admin-settings.json" ]] && install -m 0600 -o "$SERVICE_USER" -g "$SERVICE_GROUP" "$snap/admin-settings.json" "$DATA_DIR/admin-settings.json"
   if [[ -f "$snap/clickhouse.env" ]]; then
     install -m 0640 -o root -g "$SERVICE_GROUP" "$snap/clickhouse.env" "$CONFIG_DIR/clickhouse.env"
   elif [[ -f "$CONFIG_DIR/clickhouse.env" ]]; then
@@ -682,6 +682,7 @@ if [[ -x "$PREFIX/flowcollector" || -f "$CONFIG_FILE" || -f "$SYSTEMD_DIR/$SERVI
   [[ -x "$PREFIX/flowgen" ]] && cp -a "$PREFIX/flowgen" "$SNAPSHOT/flowgen"
   [[ -x "$PREFIX/chbench" ]] && cp -a "$PREFIX/chbench" "$SNAPSHOT/chbench"
   [[ -f "$CONFIG_FILE" ]] && cp -a "$CONFIG_FILE" "$SNAPSHOT/config.yaml"
+  [[ -f "$DATA_DIR/admin-settings.json" ]] && cp -a "$DATA_DIR/admin-settings.json" "$SNAPSHOT/admin-settings.json"
   [[ -f "$CONFIG_DIR/clickhouse.env" ]] && cp -a "$CONFIG_DIR/clickhouse.env" "$SNAPSHOT/clickhouse.env"
   [[ -f "$CONFIG_DIR/cluster.token" ]] && cp -a "$CONFIG_DIR/cluster.token" "$SNAPSHOT/cluster.token"
   [[ -f "$SYSTEMD_DIR/$SERVICE" ]] && cp -a "$SYSTEMD_DIR/$SERVICE" "$SNAPSHOT/$SERVICE"
@@ -732,29 +733,21 @@ CURRENT_TLS="$(web_value tls "$CONFIG_FILE" || true)"
 CURRENT_CERT="$(web_value cert_file "$CONFIG_FILE" || true)"
 CURRENT_KEY="$(web_value key_file "$CONFIG_FILE" || true)"
 CURRENT_PORT="$(web_value port "$CONFIG_FILE" || true)"
-CURRENT_BIND="$(web_value bind "$CONFIG_FILE" || true)"
 
 # Migrate the v1.0.0 auto-self-signed profile. Custom explicit TLS is preserved.
 if (( FRESH == 0 )) && [[ "$CURRENT_TLS" == "true" ]] && [[ -z "$CURRENT_CERT" || -z "$CURRENT_KEY" ]]; then
-  warn "Legacy auto/self-signed TLS profile detected. Migrating to certificate-free loopback HTTP mode."
+  warn "Legacy auto/self-signed TLS profile detected. Migrating to certificate-free HTTP mode."
   set_web_value tls "false" "$CONFIG_FILE"
   set_web_value cert_file '""' "$CONFIG_FILE"
   set_web_value key_file '""' "$CONFIG_FILE"
   if [[ "$CURRENT_PORT" == "8443" ]]; then set_web_value port "8080" "$CONFIG_FILE"; fi
-  if (( WEB_BIND_SET == 0 )); then set_web_value bind '"127.0.0.1"' "$CONFIG_FILE"; fi
 fi
 
-# v1.0.1 could leave a legacy 0.0.0.0 HTTP bind behind after TLS migration.
-# For a secure zero-friction upgrade, narrow unmanaged plaintext HTTP to loopback.
-# Administrators who intentionally need remote HTTP must opt in explicitly with
-# --web-bind 0.0.0.0 (prefer a trusted TLS reverse proxy in real deployments).
-# Existing installations retain their explicit bind. Fresh installations use
-# 0.0.0.0 so the management interface is reachable from the detected WAN.
-
-if (( WEB_BIND_SET )); then set_web_value bind "\"$WEB_BIND\"" "$CONFIG_FILE"; fi
+# Apply the installation profile on upgrades too. Use --web-bind to select a
+# different interface, including an intentional loopback-only installation.
+set_web_value bind "\"$WEB_BIND\"" "$CONFIG_FILE"
 if (( WEB_PORT_SET )); then set_web_value port "$WEB_PORT" "$CONFIG_FILE"; fi
 if (( FRESH )); then
-  set_web_value bind "\"$WEB_BIND\"" "$CONFIG_FILE"
   set_web_value port "$WEB_PORT" "$CONFIG_FILE"
 fi
 
@@ -886,6 +879,10 @@ fi
 
 chmod 0640 "$CONFIG_FILE"
 chown root:"$SERVICE_GROUP" "$CONFIG_FILE"
+"$PREFIX/flowcollector" config sync-web-bind --config "$CONFIG_FILE" || die "Could not synchronize the saved management bind."
+if [[ -f "$DATA_DIR/admin-settings.json" ]]; then
+  chown "$SERVICE_USER:$SERVICE_GROUP" "$DATA_DIR/admin-settings.json"
+fi
 "$PREFIX/flowcollector" config validate --config "$CONFIG_FILE" || die "Configuration validation failed."
 ok "Configuration validation passed"
 

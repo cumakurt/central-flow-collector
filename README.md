@@ -131,6 +131,10 @@ mkdir -p .local-data/enrichment
 
 The installer and default configuration bind the management portal to `0.0.0.0`. It prints the primary WAN address detected from the host routing table in the installation summary. Open that address on port `8080`. On first start, the collector writes a bootstrap administrator credential to `security.bootstrap_file`. Sign in, change the temporary password, and remove the bootstrap file.
 
+Upgrades through `install.sh`, `install-portable.sh`, or `install.ps1` also apply this bind, including any saved portal override in `admin-settings.json`. Pass `--web-bind 127.0.0.1` (PowerShell: `-WebBind 127.0.0.1`) if you intentionally require loopback. The installer backs up changed settings. `0.0.0.0` listens on all IPv4 interfaces, including the WAN interface; the detected address is used for the access URL. An explicit `FLOWCOLLECTOR_WEB_BIND` in the service environment still takes precedence. Startup logs show the actual **Web listen address** separately from the local access URL.
+
+To apply the fix to an existing Linux service from this checkout, run `sudo ./install.sh --web-bind 0.0.0.0`. Replacing a binary or installing a DEB/RPM alone preserves existing configuration; use the installer to migrate it and restart the service. Check the result with `sudo ss -ltnp 'sport = :8080'` (substitute your configured web port).
+
 Management access can be restricted from **System → Admin Settings → Management access policy**. Rules accept IPv4/IPv6 addresses and CIDRs, are evaluated in order, and support `allow` or `deny` actions with an explicit default action. The policy is stored atomically in `access-policy.json` under the data directory and is enforced for the portal and API; health, readiness, and metrics remain available for monitoring.
 
 ### Portal preview
@@ -152,6 +156,8 @@ Additional capability screens captured from the same generated-traffic run:
 ![Scheduled reports](docs/screenshots/reports.png)
 ![Notifications](docs/screenshots/notifications.png)
 ![System health](docs/screenshots/system.png)
+![Account security with authenticator setup](docs/screenshots/account-security.png)
+![Management access policy editor](docs/screenshots/management-access-policy.png)
 
 Send synthetic NetFlow v5 traffic:
 

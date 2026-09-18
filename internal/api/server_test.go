@@ -36,9 +36,11 @@ func TestHandlerEnforcesManagementAccessPolicy(t *testing.T) {
 		t.Fatalf("allowed request status=%d", allowed.Code)
 	}
 	health := httptest.NewRecorder()
-	s.Handler().ServeHTTP(health, httptest.NewRequest(http.MethodGet, "http://collector/health", nil))
-	if health.Code == http.StatusForbidden {
-		t.Fatal("health endpoint should remain available for monitoring")
+	healthReq := httptest.NewRequest(http.MethodGet, "http://collector/health", nil)
+	healthReq.RemoteAddr = deniedReq.RemoteAddr
+	s.Handler().ServeHTTP(health, healthReq)
+	if health.Code != http.StatusForbidden {
+		t.Fatal("management policy must cover every endpoint on the management port")
 	}
 }
 

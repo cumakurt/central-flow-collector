@@ -5,6 +5,7 @@ VERSION=4.0.0
 PREFIX=/usr/local
 CONFIG_DIR=/usr/local/etc/flowcollector
 DATA_DIR=/var/lib/flowcollector
+WEB_BIND=0.0.0.0
 REPOSITORY=cumakurt/central-flow-collector
 SOURCE_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 NO_SERVICE=0
@@ -15,7 +16,7 @@ BUILD_FROM_SOURCE=0
 usage() {
   cat <<EOF
 Usage: sudo ./install-portable.sh [--version VERSION] [--prefix DIR]
-  [--config-dir DIR] [--data-dir DIR] [--source-dir DIR]
+  [--config-dir DIR] [--data-dir DIR] [--source-dir DIR] [--web-bind HOST]
   [--repository OWNER/REPO] [--build-from-source] [--no-service]
   [--no-start] [--force]
 EOF
@@ -27,6 +28,7 @@ while [ "$#" -gt 0 ]; do
     --prefix) PREFIX=$2; shift 2;;
     --config-dir) CONFIG_DIR=$2; shift 2;;
     --data-dir) DATA_DIR=$2; shift 2;;
+    --web-bind) WEB_BIND=$2; shift 2;;
     --source-dir) SOURCE_DIR=$2; shift 2;;
     --repository) REPOSITORY=$2; shift 2;;
     --build-from-source) BUILD_FROM_SOURCE=1; shift;;
@@ -44,22 +46,25 @@ case "$(uname -m)" in amd64|x86_64) ARCH=amd64;; arm64|aarch64) ARCH=arm64;; *) 
 BINARY="$PREFIX/bin/flowcollector"
 mkdir -p "$PREFIX/bin" "$CONFIG_DIR" "$DATA_DIR"
 [ ! -e "$BINARY" ] || [ "$FORCE" -eq 1 ] || { echo "$BINARY exists; use --force" >&2; exit 1; }
-tmp=$(mktemp -d "${TMPDIR:-/tmp}/flowcollector.XXXXXX")
+tmp=$(mktemp -d "$PREFIX/bin/.flowcollector-install.XXXXXX")
 trap 'rm -rf "$tmp"' EXIT HUP INT TERM
+staged_binary="$tmp/flowcollector"
 asset="flowcollector-$OS-$ARCH"
 local="$SOURCE_DIR/dist/$asset"
 if [ -x "$local" ]; then
-  cp "$local" "$BINARY"
+  cp "$local" "$staged_binary"
 elif [ "$BUILD_FROM_SOURCE" -eq 1 ] || [ -f "$SOURCE_DIR/go.mod" ]; then
   command -v go >/dev/null 2>&1 || { echo "Go is required for source builds" >&2; exit 1; }
-  (cd "$SOURCE_DIR" && CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -buildvcs=false -trimpath -ldflags "-s -w -X central-flow-collector/internal/buildinfo.Version=$VERSION" -o "$BINARY" ./cmd/flowcollector)
+  (cd "$SOURCE_DIR" && CGO_ENABLED=0 GOOS="$OS" GOARCH="$ARCH" go build -buildvcs=false -trimpath -ldflags "-s -w -X central-flow-collector/internal/buildinfo.Version=$VERSION" -o "$staged_binary" ./cmd/flowcollector)
 else
   command -v curl >/dev/null 2>&1 || { echo "curl is required to download release artifacts" >&2; exit 1; }
-  curl -fsSL "https://github.com/$REPOSITORY/releases/download/v$VERSION/$asset" -o "$BINARY"
+  curl -fsSL "https://github.com/$REPOSITORY/releases/download/v$VERSION/$asset" -o "$staged_binary"
 fi
-chmod 0755 "$BINARY"
+chmod 0755 "$staged_binary"
+mv -f "$staged_binary" "$BINARY"
 
 config="$CONFIG_DIR/config.yaml"
+if [ -f "$config" ]; then cp -p "$config" "$config.backup.$(date -u +%Y%m%dT%H%M%SZ)"; fi
 [ -f "$config" ] || cp "$SOURCE_DIR/config.example.yaml" "$config"
 set_value() {
   section=$1 key=$2 value=$3 file=$4
@@ -75,6 +80,8 @@ set_value() {
 set_value storage data_dir "$DATA_DIR" "$config"
 set_value security bootstrap_file "$DATA_DIR/bootstrap-admin.txt" "$config"
 set_value analytics baseline_state_file "$DATA_DIR/baseline-state.json" "$config"
+set_value web bind "$WEB_BIND" "$config"
+"$BINARY" config sync-web-bind --config "$config"
 "$BINARY" config validate --config "$config"
 
 if [ "$NO_SERVICE" -eq 0 ] && [ "$OS" = darwin ]; then

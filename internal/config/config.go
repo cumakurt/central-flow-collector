@@ -184,7 +184,7 @@ func Default() Config {
 	c.Storage.ClickHouseMaxResultRows = 100000
 	c.Storage.ClickHouseMaxExecutionSecs = 12
 	c.Storage.ClickHouseColdAfterDays = 0
-	c.Security.DefaultPolicy = "deny"
+	c.Security.DefaultPolicy = "allow"
 	c.Security.SessionHours = 8
 	c.Security.ExporterPacketsPerSec = 50000
 	c.Security.ExporterBurst = 100000

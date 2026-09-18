@@ -3,9 +3,9 @@
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
   "name": "central-flow-collector-4.0.0",
-  "documentNamespace": "https://central-flow-collector.local/sbom/4.0.0/1789713927",
+  "documentNamespace": "https://central-flow-collector.local/sbom/4.0.0/1789735880",
   "creationInfo": {
-    "created": "2026-09-18T06:45:27Z",
+    "created": "2026-09-18T12:51:20Z",
     "creators": [
       "Tool: scripts/generate-sbom.py"
     ]
@@ -38,197 +38,197 @@
     },
     {
       "path": "dist/central-flow-collector_4.0.0_amd64.deb",
-      "sha256": "77eccba716956847522ca6bf726c8e78702432b438286105ea06f56897a9dd41",
-      "size": 3871376
+      "sha256": "8b5323985bf706e99f60adf5c46a4b6ee5d708956191a8da80bd7531909209ce",
+      "size": 3923868
     },
     {
       "path": "dist/central-flow-collector_4.0.0_arm64.deb",
-      "sha256": "9bab78d6995819ba2703753e70c267ff7e4b9c878fb31277a7770fb45ccebb55",
-      "size": 3305496
+      "sha256": "8e1d7346019394f4b18ed7f01e5170dec0901a38a8589211b9a23b6608a269ab",
+      "size": 3351720
     },
     {
       "path": "dist/chbench-darwin-amd64",
-      "sha256": "91825df865d46aa1055e4d8651a63d98c25d047d189693ebb7567b7883767cf6",
+      "sha256": "1343f7322aa5ce4d353161fa34aa202ecf018f9a4724d06a32f73a81a034a49c",
       "size": 6999792
     },
     {
       "path": "dist/chbench-darwin-arm64",
-      "sha256": "0a1bcccab00522e820e01a05846b0120a9498182cdb6a387863ad4e8b610067a",
+      "sha256": "b942c96816427f346362aaed019d77e11b14b097ff68718f98ebd3c74a3ba000",
       "size": 6505090
     },
     {
       "path": "dist/chbench-freebsd-amd64",
-      "sha256": "33473fc9113f02676c09b0ce6052db064a9566578eca4860eedc38613e2b235d",
+      "sha256": "71e956442175e30ca96eaef211e92e697d9d2d9efea266484527328894a2223d",
       "size": 6820012
     },
     {
       "path": "dist/chbench-linux-amd64",
-      "sha256": "4c0d62eacdc8ce3e3f5d422b0236e6ed714444baec4214f3e4e0bdc7a8aba117",
+      "sha256": "478c45e80dac2fb55d52bc95a36664e7d6e248a88967edc70edab1e6b912ade9",
       "size": 6873250
     },
     {
       "path": "dist/chbench-linux-arm64",
-      "sha256": "6497ac4e9320bacc6d61b6c00b30884a3c78e76015bb5dd0d947d907b42d1cf5",
+      "sha256": "3938510c709bea4285a726519a7199aefa6165fb4813da24ca7f7fd2848c0886",
       "size": 6357154
     },
     {
       "path": "dist/chbench-windows-amd64.exe",
-      "sha256": "ec8069e861982f5cfe8cad5a0a5a00f7c0eeea4bb8570e3f04371acdfbd6ffae",
+      "sha256": "afb8c55f22cf8a5a3756aee13637f6599c09d2fa5e6885188e4d85a4ca01876f",
       "size": 7070720
     },
     {
       "path": "dist/chbench-windows-arm64.exe",
-      "sha256": "dd319c0f4c7dc783a3782a13bf842dbeac44cd6346a6154070b1dfbe8764c7df",
+      "sha256": "83cc7190c6774f794cf158c539db1b5e5507ee9716906d407510e7595651273e",
       "size": 6427136
     },
     {
       "path": "dist/flowbench-darwin-amd64",
-      "sha256": "91b11cbcf6c4b4b2da2b73ff3e12dfa666f2fb00a255c585a6bb38c6699b1ea4",
+      "sha256": "ec9582a12b32c810b77662e785e4d0d1ed0dc0aa1aa34ba9e2ead9a0ef46b36d",
       "size": 2653632
     },
     {
       "path": "dist/flowbench-darwin-arm64",
-      "sha256": "48f71aae1c8156d2b0ff52e2a82f7f115a77dc3f0ebc9d33cd2c99bd85de35f4",
+      "sha256": "011e3072556b444b345389b093300457323035af0d5f088ba236b881fd5f2d39",
       "size": 2542322
     },
     {
       "path": "dist/flowbench-freebsd-amd64",
-      "sha256": "741c36b300ed0ee235307dc3c3a6cb6a4f6cf12a1987e258290bcbcaba805f04",
+      "sha256": "fb17cf3181c46c3ba8dbd03e5e005ef071d451e65cebc9d910555ea06fb77eb3",
       "size": 2551980
     },
     {
       "path": "dist/flowbench-linux-amd64",
-      "sha256": "ba5d9d44e85fbf4a99bb0428536a927d32202f40adf409397649833483397f9a",
+      "sha256": "e49a66c4cb843630436d1f334959a8b5e05ded07b09d77e9590cfc8aa9e5de72",
       "size": 2584738
     },
     {
       "path": "dist/flowbench-linux-arm64",
-      "sha256": "4a2d0c88f6230a83edb58e4181afdd7c76a393870c2d82771b18ca940c6e02e5",
+      "sha256": "a1324ad88032988173c6b488bc63279e1b228475d6c2a697fe84ab69c0feec01",
       "size": 2556066
     },
     {
       "path": "dist/flowbench-windows-amd64.exe",
-      "sha256": "1074d2a7579ff3baf7726039e9ccc3205508ff458160462a1cf498cda3e2e1ca",
+      "sha256": "6857cec1287ce9dc68bf88a31ee74468ef63109a2116d0dab957cc2fd4d85032",
       "size": 2732544
     },
     {
       "path": "dist/flowbench-windows-arm64.exe",
-      "sha256": "0015a6f6f5d4048d7a26c297796f6735d91738220fbc32d5e2b23783e41f709a",
+      "sha256": "9e98a7e36d83733a282e567184aef18477fe28d48cdb9aa33628358d6fae96cc",
       "size": 2568704
     },
     {
       "path": "dist/flowcollector-4.0.0-1.aarch64.rpm",
-      "sha256": "ceeddfc66b0e65619404102dde42f30948591e60facd51531979bde14e4b75a2",
-      "size": 3754592
+      "sha256": "fffbee005caf697dafc92b105b404a8625ea60119f99979f3cd2908b0129575c",
+      "size": 3807668
     },
     {
       "path": "dist/flowcollector-4.0.0-1.x86_64.rpm",
-      "sha256": "f8c461ef89994f2e85a528c51c4aa0c856a25701fcb7108819b05a0eb0520d01",
-      "size": 4199328
+      "sha256": "965eb8a6a4d8aa80ebe97bfc3d54b8764b1b10b4bb49dde131bebc8ce5ad02ed",
+      "size": 4259648
     },
     {
       "path": "dist/flowcollector-darwin-amd64",
-      "sha256": "33a864b4c19b07cfab36116603ad47e6465c36d7ebb22cb3e26db58c1ff0ef15",
-      "size": 13286096
+      "sha256": "2cfcfb62ced93620b171e14a980c3e959f13382d6ee2a153745aec9f5d3d1c40",
+      "size": 13419040
     },
     {
       "path": "dist/flowcollector-darwin-arm64",
-      "sha256": "913ed3b235338ca90308d95cdb545691bd23b1a877e10559dc079641cb594e88",
-      "size": 12208914
+      "sha256": "7335f501ec4646f151fdb4ad6593c9f5852f6e85671ab3c758756e0fc49a6c73",
+      "size": 12347042
     },
     {
       "path": "dist/flowcollector-freebsd-amd64",
-      "sha256": "91a88f48d49f72f6c88c6763d99ac37c6d12e18c3186cc143f51f2ec05539db9",
-      "size": 12992684
+      "sha256": "e76291e2fc01c2170dc3fa7314ec8f412420b4e6d85ad20342388af022ed064d",
+      "size": 13119660
     },
     {
       "path": "dist/flowcollector-linux-amd64",
-      "sha256": "5f7d86d6a9013c1d950365be63080680b5c522626cb12105c3ab1c5d02d716eb",
-      "size": 13062306
+      "sha256": "23ff163b2b28701dc084e1b277573338448aa7962d6098e87bf0a3004853141a",
+      "size": 13185186
     },
     {
       "path": "dist/flowcollector-linux-arm64",
-      "sha256": "497c5622cb7bfe5115887a4edd34042a63e2b20bf8e9fdfb67cbd3f29e75b382",
-      "size": 11993250
+      "sha256": "e010aeec58820de299c7f012e527484fd7a76bc14666eb21693e0d701a46ca8d",
+      "size": 12058786
     },
     {
       "path": "dist/flowcollector-windows-amd64.exe",
-      "sha256": "16e496c4c266db00aaa1a13f45794f33dfac52b085fb435e5ce209dabb1953a8",
-      "size": 13371392
+      "sha256": "bd5a87ce1a34cd6bfe8b5f75624079dc525f8d47a0ebb03e87b5711d88993558",
+      "size": 13500928
     },
     {
       "path": "dist/flowcollector-windows-arm64.exe",
-      "sha256": "f86f52e3e446d1f3d8d0da65d290ba0eaed671d39050fa612c1ddbcf3ce8c9cd",
-      "size": 12040192
+      "sha256": "4b6cd55224716a333d56f68d43f98d45e55c87025d0169bb3d5d4c4cb55afaee",
+      "size": 12176896
     },
     {
       "path": "dist/flowgen-darwin-amd64",
-      "sha256": "1f55ea0c2afb9df315a37cb52744c58ce5336b2d087d8dfd21e64141fb3abf24",
+      "sha256": "1bf78d2634640226b41a60ba736153ee97779f8a252626ab8eb410ca24f941ad",
       "size": 2365760
     },
     {
       "path": "dist/flowgen-darwin-arm64",
-      "sha256": "ec0580055cf7ccf8d27aebf727d05f3c873e04383da37cec471687cf4bce6886",
+      "sha256": "fb3712727a3acc92be9a003071806e32c4e05aa1e036c3854890c3064fd1764a",
       "size": 2305858
     },
     {
       "path": "dist/flowgen-freebsd-amd64",
-      "sha256": "1d5c6f9f5494fcc8352ce668368ed788f43c294bea02503119ee0a6a8d43ea11",
+      "sha256": "6422d591205f2ecb96b10178d3cbb2f9ee074c9d39004025338a26e00b9a87e3",
       "size": 2273452
     },
     {
       "path": "dist/flowgen-linux-amd64",
-      "sha256": "ff871f8a957398ef1db4c9229cff721ae9e95bca537d653e6d54427252535381",
+      "sha256": "73bc20cfcd5427dc1427b5635dd768b44c4639594094b823c3a54a2cabec8783",
       "size": 2302114
     },
     {
       "path": "dist/flowgen-linux-arm64",
-      "sha256": "149426020875e8d3710f61a7d28b49186c42554c63309646d9a5ada2561ab04d",
+      "sha256": "f4938ee580601a9f670f2847ee29381210854c584e0b5397d556639b17401c64",
       "size": 2228386
     },
     {
       "path": "dist/flowgen-windows-amd64.exe",
-      "sha256": "3bdbc587490af0fad89bbb7c637fe426a5822b6fd91d973c58d3df8b37577d97",
+      "sha256": "6bdc63544865cb0fecb5669827ee78c99c86e87a4cbb030a2be4311821c881c9",
       "size": 2450944
     },
     {
       "path": "dist/flowgen-windows-arm64.exe",
-      "sha256": "0d53981f418d1abdf6f059f87fe172dfcb18e2680732ea352f1c4c53d9cc0199",
+      "sha256": "eb44e6cdc0edc6259fddd9482636ea43e82eaa341bb28ec44a0c54fb5ff20205",
       "size": 2315264
     },
     {
       "path": "dist/querybench-darwin-amd64",
-      "sha256": "5fc14e8def7ca23cee266896bd0b051e047b93f5822097081253ff4e98f19a31",
+      "sha256": "e177f2a6168cba4b709bdb0ccec793ced60c157cb578f4d2d3edd75f651da8fd",
       "size": 4924000
     },
     {
       "path": "dist/querybench-darwin-arm64",
-      "sha256": "cc67694dc026666c392b16d62092e17fd8431e00461cf437a569cce8362604e2",
+      "sha256": "b53be28bf1363dce7054fee6ca632c1845992add632e140b6f6b870af3457c0c",
       "size": 4607122
     },
     {
       "path": "dist/querybench-freebsd-amd64",
-      "sha256": "a53f6f1d6b05be25e6f6ca1f0f906128d9eed2a488cab09d6c244ac868f5915f",
+      "sha256": "a5c00ead33ef924e7c420f5b430167efa001db594548f35f0bb9e85d5db9b073",
       "size": 4788396
     },
     {
       "path": "dist/querybench-linux-amd64",
-      "sha256": "61227dd4975009fc1c6479d7924e4706f2b260b1abb6acbbf75a1cc2cf7fe761",
+      "sha256": "57711872a9a358ca16081b561e84aabd69cdb15cde53c76e6cecf60ccb423532",
       "size": 4817058
     },
     {
       "path": "dist/querybench-linux-arm64",
-      "sha256": "23eb2419535e96d667630efa84da778206dcdaf9a6ffcadec6f568ed6c19b11b",
+      "sha256": "52c597960179b438549749a7f73ff6696f8c18c79b6d8e3b395d07ea1d09312d",
       "size": 4522146
     },
     {
       "path": "dist/querybench-windows-amd64.exe",
-      "sha256": "d7331339d9bd477a37a82358aa83682b3be46f19b550838041b7613c515853e5",
+      "sha256": "054c50dc77be757d0500151966240e6d4e60f2564374d13dc5f1586479fb58f6",
       "size": 5022720
     },
     {
       "path": "dist/querybench-windows-arm64.exe",
-      "sha256": "3546bac3e0402f8d08c5c8f52a1dcb7f81de47a78b59edf6cd2bcb357f8d1b8a",
+      "sha256": "f79e95399ed3f639668699353a4de573730614915241504276d861246bb8dce5",
       "size": 4597248
     },
     {

@@ -90,6 +90,7 @@ Usage:
   flowcollector run --config /etc/flowcollector/config.yaml
   flowcollector version
   flowcollector config validate --config FILE
+  flowcollector config sync-web-bind --config FILE
   flowcollector user reset-password --config FILE --username admin [--password VALUE]
   flowcollector policy test --config FILE --source 10.0.0.1 --protocol netflow --listener netflow --port 2055
   flowcollector diagnostics --config FILE
@@ -204,7 +205,9 @@ func run(args []string) int {
 	})
 	am, bootstrap, err := auth.New(c.Storage.DataDir, c.Security.BootstrapFile, time.Duration(c.Security.SessionHours)*time.Hour)
 	fatalIf(err)
-	col := collector.New(c, p, st, an, en)
+	// Source restrictions apply only to the management HTTP listener. Flow
+	// listeners admit every exporter; legacy policy files remain untouched.
+	col := collector.New(c, nil, st, an, en)
 	fatalIf(col.Start())
 	defer col.Stop()
 	clusterToken, tokenErr := readOptionalSecret(c.Cluster.SharedTokenFile)
@@ -419,7 +422,7 @@ func run(args []string) int {
 	if c.Web.TLS {
 		scheme = "https"
 	}
-	fmt.Printf("Version: %s (%s)\nNode: %s region=%s\nConfig: %s\nWeb UI: %s://%s:%d\nStorage: %s\nPolicy: DEFAULT %s\nEnrichment: enabled=%v prefixes=%d sites=%d\nTraffic baseline: enabled=%v min_samples=%d state=%s\n", buildinfo.Version, buildinfo.Commit, c.Node.ID, c.Node.Region, *cp, scheme, displayHost(c.Web.Bind), c.Web.Port, storageDescription(c), strings.ToUpper(c.Security.DefaultPolicy), en.Status().Enabled, en.Status().Prefixes, en.Status().Sites, c.Analytics.BaselineEnabled, c.Analytics.BaselineMinSamples, c.Analytics.BaselineStateFile)
+	fmt.Printf("Version: %s (%s)\nNode: %s region=%s\nConfig: %s\nWeb listen address: %s\nLocal Web UI: %s://%s:%d\nStorage: %s\nFlow source admission: any\nEnrichment: enabled=%v prefixes=%d sites=%d\nTraffic baseline: enabled=%v min_samples=%d state=%s\n", buildinfo.Version, buildinfo.Commit, c.Node.ID, c.Node.Region, *cp, hs.Addr, scheme, displayHost(c.Web.Bind), c.Web.Port, storageDescription(c), en.Status().Enabled, en.Status().Prefixes, en.Status().Sites, c.Analytics.BaselineEnabled, c.Analytics.BaselineMinSamples, c.Analytics.BaselineStateFile)
 	if c.Web.TLS {
 		fmt.Printf("Web transport: HTTPS using explicit certificate %s\n", c.Web.CertFile)
 	} else {
@@ -469,6 +472,17 @@ func run(args []string) int {
 	return exitCode
 }
 func configCmd(args []string) {
+	if len(args) > 0 && args[0] == "sync-web-bind" {
+		fs := flag.NewFlagSet("config sync-web-bind", flag.ExitOnError)
+		cp := cfgFlag(fs)
+		_ = fs.Parse(args[1:])
+		fatalIf(config.SyncWebBind(*cp))
+		fmt.Println("Saved management bind synchronized with config.yaml; restart the service to apply.")
+		if bind := os.Getenv("FLOWCOLLECTOR_WEB_BIND"); bind != "" {
+			fmt.Fprintf(os.Stderr, "FLOWCOLLECTOR_WEB_BIND=%s overrides the saved bind at runtime.\n", bind)
+		}
+		return
+	}
 	if len(args) < 1 || args[0] != "validate" {
 		usage()
 		os.Exit(2)
@@ -487,7 +501,7 @@ func configCmd(args []string) {
 		fmt.Fprintln(os.Stderr, "INVALID:", e)
 		os.Exit(1)
 	}
-	fmt.Printf("VALID: %s (%d listeners, storage=%s, default_policy=%s, web_tls=%v)\n", *cp, len(c.Listeners), c.Storage.Backend, c.Security.DefaultPolicy, c.Web.TLS)
+	fmt.Printf("VALID: %s (%d listeners, storage=%s, default_policy=%s, web_tls=%v, web_bind=%s)\n", *cp, len(c.Listeners), c.Storage.Backend, c.Security.DefaultPolicy, c.Web.TLS, c.Web.Bind)
 }
 func userCmd(args []string) {
 	if len(args) < 1 || args[0] != "reset-password" {

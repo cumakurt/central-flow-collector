@@ -43,7 +43,8 @@ storage:
   clickhouse_cold_after_days: 0
 
 security:
-  default_policy: "deny"
+  # Legacy source-policy simulation default; live flow listeners accept any source.
+  default_policy: "allow"
   session_hours: 8
   bootstrap_file: "/var/lib/flowcollector/bootstrap-admin.txt"
   require_mfa: false

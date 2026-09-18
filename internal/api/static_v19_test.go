@@ -112,7 +112,7 @@ func TestPortalPreservesBackendErrorDetail(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := string(app)
-	if !strings.Contains(text, "throw Error(x?.error||") {
+	if !strings.Contains(text, "Error(x?.error||") {
 		t.Fatal("portal still masks detailed backend errors")
 	}
 }

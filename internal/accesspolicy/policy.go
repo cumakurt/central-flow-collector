@@ -26,9 +26,10 @@ type Document struct {
 }
 
 type Manager struct {
-	mu   sync.RWMutex
-	path string
-	doc  Document
+	mu       sync.RWMutex
+	path     string
+	doc      Document
+	networks []*net.IPNet
 }
 
 func New(path string) (*Manager, error) {
@@ -43,7 +44,29 @@ func New(path string) (*Manager, error) {
 	} else if !os.IsNotExist(err) {
 		return nil, err
 	}
+	m.compile()
 	return m, nil
+}
+
+func parseNetwork(value string) (*net.IPNet, error) {
+	value = strings.TrimSpace(value)
+	if ip := net.ParseIP(value); ip != nil {
+		bits := 128
+		if v4 := ip.To4(); v4 != nil {
+			ip = v4
+			bits = 32
+		}
+		return &net.IPNet{IP: ip, Mask: net.CIDRMask(bits, bits)}, nil
+	}
+	_, network, err := net.ParseCIDR(value)
+	return network, err
+}
+
+func (m *Manager) compile() {
+	m.networks = make([]*net.IPNet, len(m.doc.Rules))
+	for i, rule := range m.doc.Rules {
+		m.networks[i], _ = parseNetwork(rule.CIDR)
+	}
 }
 
 func validateDocument(d Document) error {
@@ -62,8 +85,8 @@ func validateDocument(d Document) error {
 		if r.Action != "allow" && r.Action != "deny" {
 			return fmt.Errorf("access rule %q has invalid action", r.ID)
 		}
-		if _, _, err := net.ParseCIDR(strings.TrimSpace(r.CIDR)); err != nil {
-			return fmt.Errorf("access rule %q has invalid CIDR: %w", r.ID, err)
+		if _, err := parseNetwork(r.CIDR); err != nil {
+			return fmt.Errorf("access rule %q has invalid IP or subnet: %w", r.ID, err)
 		}
 	}
 	if len(d.Rules) > 512 {
@@ -81,11 +104,16 @@ func (m *Manager) Snapshot() Document {
 }
 
 func (m *Manager) Replace(d Document) error {
+	d.Rules = append([]Rule(nil), d.Rules...)
 	if d.Version == 0 {
 		d.Version = 1
 	}
 	if err := validateDocument(d); err != nil {
 		return err
+	}
+	for i := range d.Rules {
+		network, _ := parseNetwork(d.Rules[i].CIDR)
+		d.Rules[i].CIDR = network.String()
 	}
 	b, err := json.MarshalIndent(d, "", "  ")
 	if err != nil {
@@ -94,17 +122,30 @@ func (m *Manager) Replace(d Document) error {
 	if err := os.MkdirAll(filepath.Dir(m.path), 0750); err != nil {
 		return err
 	}
-	tmp := m.path + ".tmp"
-	if err := os.WriteFile(tmp, append(b, '\n'), 0600); err != nil {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	f, err := os.CreateTemp(filepath.Dir(m.path), ".access-policy-*")
+	if err != nil {
+		return err
+	}
+	tmp := f.Name()
+	defer os.Remove(tmp)
+	_, err = f.Write(append(b, '\n'))
+	if err == nil {
+		err = f.Sync()
+	}
+	if closeErr := f.Close(); err == nil {
+		err = closeErr
+	}
+	if err != nil {
 		return err
 	}
 	if err := os.Rename(tmp, m.path); err != nil {
 		_ = os.Remove(tmp)
 		return err
 	}
-	m.mu.Lock()
 	m.doc = d
-	m.mu.Unlock()
+	m.compile()
 	return nil
 }
 
@@ -114,17 +155,16 @@ func (m *Manager) Allowed(remote string) bool {
 		return false
 	}
 	m.mu.RLock()
-	d := m.doc
-	m.mu.RUnlock()
-	for _, r := range d.Rules {
+	defer m.mu.RUnlock()
+	for i, r := range m.doc.Rules {
 		if !r.Enabled {
 			continue
 		}
-		_, n, err := net.ParseCIDR(r.CIDR)
-		if err != nil || !n.Contains(ip) {
+		n := m.networks[i]
+		if n == nil || !n.Contains(ip) {
 			continue
 		}
 		return r.Action == "allow"
 	}
-	return d.DefaultAction == "allow"
+	return m.doc.DefaultAction == "allow"
 }

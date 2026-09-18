@@ -388,7 +388,10 @@ func (c *Collector) dispatchDatagram(rt *listenerRuntime, d udpDatagram) {
 		return
 	}
 	src := d.src
-	dec := c.policy.Decide(src, rt.cfg.Protocol, rt.cfg.Name, rt.cfg.Port)
+	dec := policy.Decision{Allowed: true}
+	if c.policy != nil {
+		dec = c.policy.Decide(src, rt.cfg.Protocol, rt.cfg.Name, rt.cfg.Port)
+	}
 	c.recordLivePacket(src, rt.cfg.Name, rt.cfg.Protocol, d.data[:d.n], dec.Allowed, dec.Reason)
 	if !dec.Allowed {
 		c.reject(src, rt.cfg.Protocol, rt.cfg.Name, d.n, dec.Reason)

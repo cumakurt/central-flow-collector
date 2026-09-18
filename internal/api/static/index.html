@@ -23,19 +23,13 @@
       </section>
       <section class="login-card">
         <div class="login-heading"><div><span class="eyebrow">SECURE ACCESS</span><h2>Sign in</h2></div></div>
-        <p>Use your local, directory, SSO or passkey identity.</p>
+        <p>Sign in with your username and password. If enabled, your authenticator code is requested next.</p>
         <div id="transportNotice" class="transport-notice hidden"></div>
         <form id="loginForm">
           <label>Username<input id="username" value="admin" autocomplete="username" placeholder="admin"></label>
           <label>Password<input id="password" type="password" autocomplete="current-password" placeholder="••••••••••••"></label>
-          <label>Authenticator or recovery code (if enabled)<input id="mfaCode" autocomplete="one-time-code" maxlength="128"></label>
+          <label id="mfaPrompt" class="hidden">Authenticator or recovery code<input id="mfaCode" autocomplete="one-time-code" maxlength="128"></label>
           <button class="primary wide">Sign in</button>
-          <div class="login-divider"><span>or</span></div>
-          <div class="login-alt">
-            <button type="button" id="ssoBtn" class="ghost hidden">SSO</button>
-            <button type="button" id="ldapBtn" class="ghost hidden">LDAP / AD</button>
-            <button type="button" id="passkeyBtn" class="ghost">Passkey</button>
-          </div>
           <div id="loginError" class="error"></div>
         </form>
         <button type="button" class="login-credit" data-about>Developed by Cuma KURT · AGPL-3.0-only</button>
@@ -53,7 +47,7 @@
 
       <nav id="nav" aria-label="Primary navigation"></nav>
       <div class="sidebar-foot">
-        <div class="sidebar-account"><div class="user-chip"><span class="user-avatar">U</span><span id="userLabel"></span></div><button class="ghost subtle" data-route="security">Account security</button><button id="logoutBtn" class="ghost subtle">Logout</button></div>
+        <div class="sidebar-account"><div class="user-chip"><span class="user-avatar">U</span><span id="userLabel"></span></div><button id="logoutBtn" class="ghost subtle">Logout</button></div>
         <button type="button" class="product-credit" data-about aria-label="About Central Flow Collector, developer and license"><span aria-hidden="true">ⓘ</span><span>Cuma KURT · AGPL-3.0-only</span></button>
       </div>
     </aside>
@@ -99,6 +93,7 @@
   <script src="/traffic-visuals-state.js"></script>
   <script src="/traffic-visuals.js"></script>
   <script src="/account.js"></script>
+  <script src="/access.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

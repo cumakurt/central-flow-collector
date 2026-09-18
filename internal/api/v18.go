@@ -5,9 +5,12 @@ import (
 	"central-flow-collector/internal/auth"
 	"central-flow-collector/internal/reporting"
 	"context"
+	"encoding/base64"
 	"net"
 	"net/http"
 	"time"
+
+	qrcode "github.com/skip2/go-qrcode"
 )
 
 func requestRP(r *http.Request) (string, string) {
@@ -62,8 +65,14 @@ func (s *Server) mfaTOTPBegin(w http.ResponseWriter, r *http.Request, ss auth.Se
 		writeErr(w, 400, e.Error())
 		return
 	}
+	png, err := qrcode.Encode(uri, qrcode.Medium, 256)
+	if err != nil {
+		writeErr(w, 500, "could not generate authenticator QR code")
+		return
+	}
+	w.Header().Set("Cache-Control", "no-store")
 	s.Audit.Write(audit.Event{User: ss.Username, Action: "mfa_totp_begin", Source: remoteIP(r), Success: true})
-	writeJSON(w, 200, map[string]string{"secret": secret, "otpauth_uri": uri})
+	writeJSON(w, 200, map[string]string{"secret": secret, "otpauth_uri": uri, "qr_code": "data:image/png;base64," + base64.StdEncoding.EncodeToString(png)})
 }
 func (s *Server) mfaTOTPConfirm(w http.ResponseWriter, r *http.Request, ss auth.Session) {
 	var in struct {

@@ -88,7 +88,7 @@ func New(a *auth.Manager, p *policy.Engine, c *collector.Collector, s storage.Ba
 }
 func (s *Server) Handler() http.Handler {
 	return s.securityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if s.AccessPolicy != nil && r.URL.Path != "/health" && r.URL.Path != "/ready" && r.URL.Path != "/metrics" && !s.AccessPolicy.Allowed(remoteIP(r)) {
+		if s.AccessPolicy != nil && !s.AccessPolicy.Allowed(remoteIP(r)) {
 			writeErr(w, http.StatusForbidden, "management access denied by IP policy")
 			return
 		}
@@ -112,23 +112,20 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/v1/about", s.about)
 	s.mux.HandleFunc("GET /LICENSE", s.license)
 	s.mux.HandleFunc("POST /api/v1/auth/login", s.login)
-	s.mux.HandleFunc("GET /api/v1/auth/oidc/status", s.oidcStatus)
-	s.mux.HandleFunc("GET /api/v1/auth/oidc/start", s.oidcStart)
-	s.mux.HandleFunc("GET /api/v1/auth/oidc/callback", s.oidcCallback)
+	// Interactive login is password-based, with optional TOTP. Retired login
+	// routes must not fall through to the SPA or bypass the password/MFA flow.
+	for _, prefix := range []string{"/api/v1/auth/oidc/", "/api/v1/auth/ldap/", "/api/v1/auth/webauthn/"} {
+		s.mux.HandleFunc("GET "+prefix, http.NotFound)
+		s.mux.HandleFunc("POST "+prefix, http.NotFound)
+	}
 	s.mux.HandleFunc("GET /api/v1/auth/me", s.withAuth("view", s.me))
 	s.mux.HandleFunc("GET /api/v1/auth/permissions", s.withAuth("view", s.permissions))
 	s.mux.HandleFunc("POST /api/v1/auth/logout", s.withAuth("view", s.logout))
 	s.mux.HandleFunc("POST /api/v1/auth/change-password", s.withAuth("view", s.changePassword))
-	s.mux.HandleFunc("GET /api/v1/auth/ldap/status", s.ldapStatus)
-	s.mux.HandleFunc("POST /api/v1/auth/ldap/login", s.ldapLogin)
 	s.mux.HandleFunc("GET /api/v1/auth/mfa/status", s.withAuth("view", s.mfaStatus))
 	s.mux.HandleFunc("POST /api/v1/auth/mfa/totp/begin", s.withAuth("view", s.mfaTOTPBegin))
 	s.mux.HandleFunc("POST /api/v1/auth/mfa/totp/confirm", s.withAuth("view", s.mfaTOTPConfirm))
 	s.mux.HandleFunc("POST /api/v1/auth/mfa/totp/disable", s.withAuth("view", s.mfaTOTPDisable))
-	s.mux.HandleFunc("POST /api/v1/auth/webauthn/register/options", s.withAuth("view", s.webauthnRegisterOptions))
-	s.mux.HandleFunc("POST /api/v1/auth/webauthn/register/finish", s.withAuth("view", s.webauthnRegisterFinish))
-	s.mux.HandleFunc("POST /api/v1/auth/webauthn/assert/options", s.webauthnAssertOptions)
-	s.mux.HandleFunc("POST /api/v1/auth/webauthn/assert/finish", s.webauthnAssertFinish)
 	s.mux.HandleFunc("GET /api/v1/dashboard", s.withAuth("flows.read", s.dashboard))
 	s.mux.HandleFunc("GET /api/v1/analytics", s.withAuth("analytics.read", s.flowAnalytics))
 	s.mux.HandleFunc("GET /api/v1/analytics/service-catalog", s.withAuth("analytics.read", s.serviceCatalog))
@@ -1309,20 +1306,17 @@ func (s *Server) withAuth(perm string, next authed) http.HandlerFunc {
 				return
 			}
 		}
-		// Mandatory MFA applies to the built-in local password login. A password
-		// session is fully trusted only when TOTP/recovery verification occurred
-		// during that login (session+mfa) or the user authenticated with a passkey.
-		// API tokens and external OIDC/LDAP sessions retain their own authentication
-		// policy; upstream MFA for external IdPs is deliberately not guessed here.
+		if !bearer && ss.AuthType != "session" && ss.AuthType != "session+mfa" {
+			writeErr(w, 401, "sign in with your username and password")
+			return
+		}
+		// Mandatory MFA permits only account enrollment until a password login
+		// also verifies the authenticator or a recovery code.
 		if s.RequireMFA && ss.AuthType == "session" {
 			st := s.Auth.MFAStatus(ss.Username)
-			allowedEnroll := strings.HasPrefix(r.URL.Path, "/api/v1/auth/mfa/") || strings.HasPrefix(r.URL.Path, "/api/v1/auth/webauthn/register/") || r.URL.Path == "/api/v1/auth/me" || r.URL.Path == "/api/v1/auth/change-password" || r.URL.Path == "/api/v1/auth/logout"
+			allowedEnroll := strings.HasPrefix(r.URL.Path, "/api/v1/auth/mfa/") || r.URL.Path == "/api/v1/auth/me" || r.URL.Path == "/api/v1/auth/change-password" || r.URL.Path == "/api/v1/auth/logout"
 			if !allowedEnroll {
-				msg := "MFA enrollment required"
-				if st.Passkeys > 0 {
-					msg = "MFA required: sign in with a passkey or enroll TOTP"
-				}
-				writeJSON(w, 403, map[string]any{"error": msg, "mfa_enrollment_required": !st.TOTPEnabled && st.Passkeys == 0})
+				writeJSON(w, 403, map[string]any{"error": "MFA enrollment required", "mfa_enrollment_required": !st.TOTPEnabled})
 				return
 			}
 		}

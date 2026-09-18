@@ -4,6 +4,7 @@ param(
     [string]$InstallDir = "$env:ProgramFiles\CentralFlowCollector",
     [string]$DataDir = "$env:ProgramData\CentralFlowCollector",
     [string]$ConfigPath = "",
+    [string]$WebBind = "0.0.0.0",
     [string]$Repository = "cumakurt/central-flow-collector",
     [string]$SourceDir = "$PSScriptRoot",
     [switch]$NoService,
@@ -76,7 +77,9 @@ try {
     }
     if ([string]::IsNullOrWhiteSpace($ConfigPath)) { $ConfigPath = Join-Path $InstallDir "config.yaml" }
     New-Item -ItemType Directory -Path (Split-Path -Parent $ConfigPath) -Force | Out-Null
-    if (-not (Test-Path -LiteralPath $ConfigPath)) {
+    if (Test-Path -LiteralPath $ConfigPath) {
+        Copy-Item -LiteralPath $ConfigPath -Destination ($ConfigPath + ".backup." + [DateTime]::UtcNow.ToString("yyyyMMddTHHmmssfffZ"))
+    } else {
         $example = Join-Path $source "config.example.yaml"
         if (-not (Test-Path -LiteralPath $example)) { throw "config.example.yaml was not found." }
         Copy-Item $example $ConfigPath
@@ -84,6 +87,9 @@ try {
     Set-YamlValue $ConfigPath "storage" "data_dir" $DataDir
     Set-YamlValue $ConfigPath "security" "bootstrap_file" (Join-Path $DataDir "bootstrap-admin.txt")
     Set-YamlValue $ConfigPath "analytics" "baseline_state_file" (Join-Path $DataDir "baseline-state.json")
+    Set-YamlValue $ConfigPath "web" "bind" $WebBind
+    & $binary config sync-web-bind --config $ConfigPath
+    if ($LASTEXITCODE -ne 0) { throw "Could not synchronize the saved management bind." }
     & $binary config validate --config $ConfigPath
     if ($LASTEXITCODE -ne 0) { throw "Configuration validation failed." }
     if (-not $NoService) {

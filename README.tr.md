@@ -131,6 +131,10 @@ mkdir -p .local-data/enrichment
 
 Kurulum ve varsayılan yapılandırma yönetim panelini `0.0.0.0` üzerinde dinler. Kurulum özeti, makinenin yönlendirme tablosundan otomatik tespit edilen birincil WAN adresini gösterir; paneli bu adresin `8080` portundan açın. İlk çalıştırmada bootstrap yönetici bilgisi `security.bootstrap_file` konumuna yazılır. Giriş yaptıktan sonra geçici parolayı değiştirin ve bootstrap dosyasını silin.
 
+`install.sh`, `install-portable.sh` ve `install.ps1` ile yapılan güncellemeler, `admin-settings.json` içindeki kayıtlı panel ayarı dahil bu dinleme adresini uygular. Özellikle loopback erişimi isteniyorsa `--web-bind 127.0.0.1` (PowerShell: `-WebBind 127.0.0.1`) kullanın. Kurucu değişen ayarları yedekler. `0.0.0.0`, WAN dahil tüm IPv4 arayüzlerini dinler; otomatik bulunan adres erişim bağlantısında kullanılır. Servis ortamındaki açık bir `FLOWCOLLECTOR_WEB_BIND` değeri önceliğini korur. Başlangıç kaydında gerçek **Web listen address**, yerel erişim bağlantısından ayrı gösterilir.
+
+Mevcut Linux servisine düzeltmeyi bu depo dizininden uygulamak için `sudo ./install.sh --web-bind 0.0.0.0` çalıştırın. Yalnızca binary değiştirmek veya DEB/RPM yüklemek mevcut yapılandırmayı korur; ayarı taşımak ve servisi yeniden başlatmak için kurucuyu kullanın. Sonucu `sudo ss -ltnp 'sport = :8080'` ile kontrol edin (farklı web portu kullanıyorsanız değiştirin).
+
 Yönetim paneli erişimi **System → Admin Settings → Management access policy** bölümünden IP ve CIDR bazında sınırlandırılabilir. Kurallar sırayla değerlendirilir ve `allow` veya `deny` eylemleri ile açık bir varsayılan eylem desteklenir. Politika veri dizinindeki `access-policy.json` dosyasına atomik olarak yazılır ve panel/API isteklerine uygulanır; health, ready ve metrics uçları izleme için açık kalır.
 
 ### Panel önizlemesi
@@ -152,6 +156,8 @@ Aynı sahte trafik çalışmasından alınan diğer yetenek ekranları:
 ![Zamanlanmış raporlar](docs/screenshots/reports.png)
 ![Bildirimler](docs/screenshots/notifications.png)
 ![Sistem sağlığı](docs/screenshots/system.png)
+![Authenticator ve hesap güvenliği](docs/screenshots/account-security.png)
+![Yönetim erişim politikası düzenleyicisi](docs/screenshots/management-access-policy.png)
 
 Örnek NetFlow v5 trafiği gönderin:
 
